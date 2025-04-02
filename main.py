@@ -18,11 +18,16 @@ def main():
     if not STEAM_API_KEY or not STEAM_USER_ID:
         raise ValueError("API keys must be set in environment variables")
     
-    database = Database('', 'postgres', DATABASE_PASSWORD)
+    db = Database('steam', 'postgres', DATABASE_PASSWORD)
     
     steam = Steam(STEAM_API_KEY, STEAM_USER_ID)
-    wishlist = steam.get_wishlist()
-    logger.info(f"Wishlist: \n{wishlist}")
+    user_data = steam.get_user_data()
+    # TODO check if user is in db, if not add them
+    if user_data:
+        db.add_steam_user(user_data)
+    
+    # wishlist = steam.get_wishlist()
+    # logger.info(f"Wishlist: \n{wishlist}")
     
 if __name__ == '__main__':
     main()

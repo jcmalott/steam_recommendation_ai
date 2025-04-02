@@ -64,16 +64,16 @@ class Steam():
         """ 
         """
         self.steam_api_key = steam_api_key
-        self.user_id = user_id
-        self._check_user_status()
+        self.user = self._get_steam_user_data(steam_api_key, user_id)
         
     def get_wishlist(self) -> List[str]:
         """ 
             * When updating a wishlist you will need to delete and add wishlist items stored in database
         """
+        user_id = self.user['steamid']
         params = {
             'key': self.steam_api_key,
-            'steamid': self.user_id
+            'steamid': user_id
         }
         
         try:
@@ -81,19 +81,23 @@ class Steam():
             response.raise_for_status()
             
             data = self._process_wishlist_data(response.json())
+            # save data to database
+            # only download this data once a day
+            # TODO do use db here
+            # db.add_to_wishlist(user_id, data)
             if not data:
-                logger.warning(f"UserId: {self.user_id} has no wishlist items!")
+                logger.warning(f"UserId: {user_id} has no wishlist items!")
                 
             return data
         except requests.RequestException as e:
-            logger.error(f"Failed to retrieve wishlist from UserId {self.user_id}!")
+            logger.error(f"Failed to retrieve wishlist from UserId {user_id}!")
         
     def get_library(self):
         """ 
         """
         params = {
             'key': self.steam_api_key,
-            'steamid': self.user_id,
+            'steamid': self.user['steamid'],
             'format': 'json',
             'include_played_free_games': True
         }
@@ -109,45 +113,51 @@ class Steam():
         
         self._process_game_data(appid)
         
-    def _check_user_status(self):
-        self.user_id
+    def get_user_data(self):
+        return self.user
+        
+    def _get_steam_user_data(self, steam_api_key, user_id) -> Dict[str, Any]:
         params = {
-            'key': self.steam_api_key,
-            'steamid': self.user_id
+            'key': steam_api_key,
+            'steamids': user_id
         }
         
         try:
+            logger.info(f"Steam User URL: {self.STEAM_USER_URL}?key={params['key']}&steamids={params['steamids']}")
             response = requests.get(self.STEAM_USER_URL, params=params)
             response.raise_for_status()
             
             data = self._process_user_data(response.json())
             if not data:
-                logger.warning(f"UserId: {self.user_id} has no wishlist items!")
-                
+                logger.warning(f"Steam UserId: {user_id} doesn't exist!")
+                # TODO throw exception for user not found
+            
             return data
         except requests.RequestException as e:
-            logger.error(f"Failed to retrieve wishlist from UserId {self.user_id}!")
+            logger.error(f"Failed to retrieve UserId {user_id}!")
+            # TODO catch user not found exception
             
     def _process_user_data(self, response: Dict[str,Any]) -> Dict[str, Any]:
         """ 
             * Createa a custom exception for no user id
         """
-        player = response["response"].get("players", []) if "response" in response else []
-        if not player:
+        user = response["response"].get("players", []) if "response" in response else []
+        if not user:
             return {}
         
-        steamid = player.get("steamid", "")
+        user_data = user[0]
+        steamid = user_data.get("steamid", "")
         if steamid == "":
             return {}
         
         process_data = {
             "steamid": steamid,
-            "persona_name": player.get("personaname", ""),
-            "profile_url": player.get("profileurl", ""),
-            "avatar_full": player.get("avatarfull", ""),
-            "real_name": player.get("realname", ""),
-            "country_code": player.get("loccountrycode", ""),
-            "state_code": player.get("locstatecode", ""),
+            "persona_name": user_data.get("personaname", ""),
+            "profile_url": user_data.get("profileurl", ""),
+            "avatar_full": user_data.get("avatarfull", ""),
+            "real_name": user_data.get("realname", ""),
+            "country_code": user_data.get("loccountrycode", ""),
+            "state_code": user_data.get("locstatecode", ""),
         }
         
         return process_data
@@ -179,7 +189,7 @@ class Steam():
         process_data = []
         for game in games:
             process_data.append({
-                "steamid": self.user_id,
+                "steamid": self.user['steamid'],
                 "appid": game.get("appid", 0),
                 "priority": game.get("priority", 9999)
             })
