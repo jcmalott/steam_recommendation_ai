@@ -142,49 +142,52 @@ class Steam():
         
         process_data = {
             "steamid": steamid,
-            "personaname": player.get("personaname", ""),
-            "profileurl": player.get("profileurl", ""),
-            "avatarfull": player.get("avatarfull", ""),
-            "realname": player.get("realname", ""),
-            "loccountrycode": player.get("loccountrycode", ""),
-            "locstatecode": player.get("locstatecode", ""),
+            "persona_name": player.get("personaname", ""),
+            "profile_url": player.get("profileurl", ""),
+            "avatar_full": player.get("avatarfull", ""),
+            "real_name": player.get("realname", ""),
+            "country_code": player.get("loccountrycode", ""),
+            "state_code": player.get("locstatecode", ""),
         }
         
         return process_data
         
-    def _process_wishlist_data(self, response: Dict[str,Any]) -> List[str]:
+    def _process_wishlist_data(self, response: Dict[str,Any]) -> List[Dict]:
         """ 
             
         """
         items = response["response"].get("items", []) if "response" in response else []
-        item_ids = [item.get('appid') for item in items]
-        return item_ids
+        if not items:
+            return []
+        
+        process_data = []
+        for item in items:
+            process_data.append({
+                "appid": item.get("appid", 0),
+                "priority": item.get("priority", 9999)
+            })
+            
+        return process_data
     
-    def _process_library_data(self, response: Dict[str,Any]) -> Dict[str,Any]:
+    def _process_library_data(self, response: Dict[str,Any]) -> List[Dict]:
         """ 
         """
         games = response["response"].get("games", []) if "response" in response else []
-        total_games = response["response"].get("game_count", 0) if "response" in response else []
         if not games:
             return {}
         
-        appid = games.get("appid", 0)
-        if appid == 0:
-            return {}
-        
-        process_data = {
-            "appid": appid,
-            "steamid": self.user_id,
-            "total_games": total_games,
-            "playtime": games.get("playtime_forever", 0)
-        }
-        
+        process_data = []
+        for game in games:
+            process_data.append({
+                "steamid": self.user_id,
+                "appid": game.get("appid", 0),
+                "priority": game.get("priority", 9999)
+            })
+            
         return process_data
     
     def _process_game_data(self, appid, response: Dict[str,Any]) -> Dict[str,Any]:
         """ 
-            - get_game_data
-            * Dec 9, 2020
         """
         is_success = response[appid].get("success", False) if appid in response else False
         if not is_success:
@@ -196,8 +199,8 @@ class Steam():
         
         process_data = {
             "appid": data.get("steam_appid", 0),
-            "type": data.get("type", ""),
-            "name": data.get("name", ""),
+            "game_type": data.get("type", ""),
+            "game_name": data.get("name", ""),
             "is_free": data.get("is_free", False),
             "detailed_description": data.get("detailed_description", ""),
             "about_the_game": data.get("about_the_game", ""),
@@ -216,9 +219,9 @@ class Steam():
         process_data['recommendations'] = data["recommendations"].get("total", 0) if "recommendations" in data else 0
         process_data['release_date'] = data["release_date"].get("date","") if "release_date" in data else ""
         
-        rating = data["ratings"].get("esrb","NA") if "ratings" in data else "NA"
-        if not rating:
-            rating = rating.get("rating", "")
+        rating = data["ratings"].get("esrb","rp") if "ratings" in data else "rp"
+        if rating != "rp":
+            rating = rating.get("rating", "rp")
         process_data["rating"] = rating
         
         # steam will sometimes not return certain data if data == 0
@@ -226,16 +229,16 @@ class Steam():
         if not price:
             price = {
                 "currency": "",
-                "initial":  0,
-                "final": '',
-                "discount_percent": 0,
+                "price_in_cents":  0,
+                "final_formatted": '',
+                "discount_percentage": 0,
             }
         else:
            price = {
                 "currency": price.get("currency", ""),
-                "initial": price.get("initial", 0), # price is returned in cents
-                "final": price.get("final_formatted", ''),
-                "discount_percent": price.get("discount_percent", 0),
+                "price_in_cents": price.get("initial", 0), # price is returned in cents
+                "final_formatted": price.get("final_formatted", ''),
+                "discount_percentage": price.get("discount_percent", 0),
             }  
         process_data["price_overview"] = price
         
@@ -253,13 +256,3 @@ class Steam():
         process_data["metacritic"] = metacritic
         
         return process_data
-    
-    """ 
-    CREATE TRIGGER update_prices_timestamp
-    BEFORE UPDATE ON prices 
-    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
-    
-    CREATE TRIGGER update_library_timestamp
-    BEFORE UPDATE ON user_library  
-    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
-    """
