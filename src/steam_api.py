@@ -20,33 +20,6 @@ from typing import Dict, Any, List
 import logging
 
 """ 
-    STEAM CLASS
-    * Every method when done should store data to database
-    - get_wishlist
-        Only need to call once
-            ["response"]["items"] = [{}]
-            - appid
-    - get_libray
-        Only need to call once
-            ["response"]["games"] = [{}]
-            - appid
-            - playtime_forever
-    - get_game_data
-        # wait 1.5 secs between each call, 200 request per 5 mins = (5*60)/200 = 1.5
-        Need to call for every game 
-            # appid -> Enter the acctual app id EX: ["1091500"]["success"] = True
-            [appid]["success"] = bool #if item was found
-            [appid]["data"] = {}
-            - name, steam_appid, is_free, detailed_description, about_the_game, header_image, website, developers, publishers
-            * price is given in cents
-            - price_overview -> currency, initial, final, discount_percent
-            - metacritic - > score
-            - categories - > description
-            - genres - > description
-            - recommendations - > total
-            * Dec 9, 2020
-            - release_date - > date
-            - ratings - > esrb
 """
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -77,6 +50,7 @@ class Steam():
         }
         
         try:
+            logger.info(f"Steam Wishlist URL: {self.STEAM_WISHLIST_URL}?key={params['key']}&steamid={params['steamid']}")
             response = requests.get(self.STEAM_WISHLIST_URL, params=params)
             response.raise_for_status()
             
@@ -173,6 +147,7 @@ class Steam():
         process_data = []
         for item in items:
             process_data.append({
+                "steamid": self.user['steamid'],
                 "appid": item.get("appid", 0),
                 "priority": item.get("priority", 9999)
             })

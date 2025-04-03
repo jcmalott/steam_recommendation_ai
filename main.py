@@ -26,6 +26,9 @@ def main():
     if user_data:
         db.add_steam_user(user_data)
     
+    # if False then run tasks
+    is_wishlist_updated = db.check_update_status(user_data['steamid'], 'wishlist_updated_at')
+    
     # wishlist = steam.get_wishlist()
     # logger.info(f"Wishlist: \n{wishlist}")
     
