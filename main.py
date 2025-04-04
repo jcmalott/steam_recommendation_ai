@@ -1,13 +1,10 @@
 import os
 from dotenv import load_dotenv
-import logging
 
 from src.steam_api import Steam
-from data.database import Database
+from data.steam_database import SteamDatabase
+from src import logger
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
 
 def main():
     load_dotenv()
@@ -18,16 +15,17 @@ def main():
     if not STEAM_API_KEY or not STEAM_USER_ID:
         raise ValueError("API keys must be set in environment variables")
     
-    db = Database('steam', 'postgres', DATABASE_PASSWORD)
-    
+    db = SteamDatabase('steam', 'postgres', DATABASE_PASSWORD)
     steam = Steam(STEAM_API_KEY, STEAM_USER_ID)
     user_data = steam.get_user_data()
-    # TODO check if user is in db, if not add them
+    # if user has steam account add to database
     if user_data:
         db.add_steam_user(user_data)
     
-    # if False then run tasks
+    # check if wishlist for this user needs to be pulled from steam server
     is_wishlist_updated = db.check_update_status(user_data['steamid'], 'wishlist_updated_at')
+    if not is_wishlist_updated:
+        pass
     
     # wishlist = steam.get_wishlist()
     # logger.info(f"Wishlist: \n{wishlist}")
