@@ -43,32 +43,30 @@ class Steam():
         # Immediately fetch user data on initialization
         self.user = self._get_steam_user_data()
         
-    # def get_wishlist(self) -> List[str]:
-    #     """ 
-    #         * When updating a wishlist you will need to delete and add wishlist items stored in database
-    #     """
-    #     user_id = self.user['steamid']
-    #     params = {
-    #         'key': self.steam_api_key,
-    #         'steamid': user_id
-    #     }
+    def get_wishlist(self) -> List[str]:
+        """ 
+            * When updating a wishlist you will need to delete and add wishlist items stored in database
+        """
+        params = {
+            'key': self.steam_api_key,
+            'steamid': self.user_id
+        }
         
-    #     try:
-    #         logger.info(f"Steam Wishlist URL: {self.STEAM_WISHLIST_URL}?key={params['key']}&steamid={params['steamid']}")
-    #         response = requests.get(self.STEAM_WISHLIST_URL, params=params)
-    #         response.raise_for_status()
+        try:
+            logger.info(f"Steam Wishlist URL: {self.STEAM_WISHLIST_URL}?key={params['key']}&steamid={params['steamid']}")
+            response = requests.get(self.STEAM_WISHLIST_URL, params=params)
+            response.raise_for_status()
             
-    #         data = self._process_wishlist_data(response.json())
-    #         # save data to database
-    #         # only download this data once a day
-    #         # TODO do use db here
-    #         # db.add_to_wishlist(user_id, data)
-    #         if not data:
-    #             logger.warning(f"UserId: {user_id} has no wishlist items!")
+            data = self._process_wishlist_data(response.json())
+            # save data to database
+            # TODO do use db here
+            # db.add_to_wishlist(user_id, data)
+            if not data:
+                logger.warning(f"UserId: {self.user_id} has no wishlist items!")
                 
-    #         return data
-    #     except requests.RequestException as e:
-    #         logger.error(f"Failed to retrieve wishlist from UserId {user_id}!")
+            return data
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve wishlist from UserId {self.user_id}!")
         
     # def get_library(self):
     #     """ 
@@ -116,6 +114,7 @@ class Steam():
             logger.info(f"Steam User URL: {self.STEAM_USER_URL}?key={params['key']}&steamids={params['steamids']}")
             response = requests.get(self.STEAM_USER_URL, params=params)
             response.raise_for_status()
+            print(f"{response}")
             
             # only store profile data that is needed
             data = self._process_user_data(response.json())
@@ -133,14 +132,13 @@ class Steam():
         """ 
             Process users Steam account data
             
-            Args:
-                response: JSON response containing Steam account data
-                
+            Args: response: JSON response containing Steam account data  
             Returns: Processed Steam user account data or empty dict if user not found
         """
         # Check that a user account was return
-        json_response = response["response"] if "response" in response else []
+        json_response = response["response"] if "response" in response else {}
         user = json_response.get("players", []) if "players" in json_response else []
+        
         if not user:
             return {}
         
@@ -164,23 +162,25 @@ class Steam():
         
         return process_data
         
-    # def _process_wishlist_data(self, response: Dict[str,Any]) -> List[Dict]:
-    #     """ 
+    def _process_wishlist_data(self, response: Dict[str,Any]) -> List[Dict]:
+        """ 
             
-    #     """
-    #     items = response["response"].get("items", []) if "response" in response else []
-    #     if not items:
-    #         return []
+        """
+        json_response = response["response"] if "response" in response else {}
+        items = json_response.get("items", []) if "items" in json_response else []
         
-    #     process_data = []
-    #     for item in items:
-    #         process_data.append({
-    #             "steamid": self.user['steamid'],
-    #             "appid": item.get("appid", 0),
-    #             "priority": item.get("priority", 9999)
-    #         })
+        if not items:
+            return []
+        
+        process_data = []
+        for item in items:
+            process_data.append({
+                "steamid": self.user_id,
+                "appid": item.get("appid", 0),
+                "priority": item.get("priority", 9999)
+            })
             
-    #     return process_data
+        return process_data
     
     # def _process_library_data(self, response: Dict[str,Any]) -> List[Dict]:
     #     """ 

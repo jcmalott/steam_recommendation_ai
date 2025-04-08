@@ -40,16 +40,16 @@ class SteamDatabase():
         self._insert_new_row('users', fields, user)
         return True
         
-    # def add_to_wishlist(self, user_id: str, items: Dict[str, Any]) -> int:
-    #     # ON CONFLICT (steamid, appid) DO NOTHING
-    #     is_user = self._check_table_item('steamid','users',user_id)
-    #     if not is_user:
-    #         return 0
+    def add_to_wishlist(self, user_id: str, items: Dict[str, Any]) -> int:
+        # ON CONFLICT (steamid, appid) DO NOTHING
+        is_user = self._check_table_item('steamid','users',user_id, False)
+        if not is_user:
+            return 0
             
-    #     values = []
-    #     self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items)
-    #     logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
-    #     return len(values)
+        values = []
+        self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items)
+        logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
+        return len(values)
     
     def check_update_status(self, user_id: str, column: str) -> bool:
         """
@@ -79,7 +79,7 @@ class SteamDatabase():
             
             self.cur.execute(query)
             # returns false if no update is needed
-            return self.cur.fetchone()
+            return self.cur.fetchone() is not None
         except pg2.Error as e:
             logger.error(f"ERROR: Database Fetching Schedule: {e}")
             if self.conn:
@@ -112,7 +112,7 @@ class SteamDatabase():
             if self.conn:
                 self.conn.rollback()
             
-    def _check_table_item(self, column: str, table: str, item) -> bool:
+    def _check_table_item(self, column: str, table: str, item, check_data: bool = True) -> bool:
         """
             Check if an item exists in a specific column of a table
             

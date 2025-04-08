@@ -28,7 +28,6 @@ def test_get_user_data():
         
         # Set up a test user value
         steam.user = {"steamid": "test_id", "persona_name": "Test User"}
-        
         # Verify the method returns the expected value
         assert steam.get_user_data() == {"steamid": "test_id", "persona_name": "Test User"}
 
@@ -51,7 +50,6 @@ def test_get_steam_user_data(actual, expected):
         steam = Steam(steam_api_key="test_api_key", user_id="76561198041511379")
         
         assert steam.user == expected
-        
         _check_params(mock_get)
 
 def test_get_steam_user_data_request_exception():
@@ -67,16 +65,6 @@ def test_get_steam_user_data_request_exception():
         assert str(excinfo.value) == "Failed to retrieve UserId 76561198041511379!"
         
         _check_params(mock_get)
-        
-def _check_params(mock_get: Mock):
-    # Verify that requests.get was called once before the exception was raised
-    mock_get.assert_called_once()
-    
-    # Verify the correct URL and parameters were used in the API call
-    call_args = mock_get.call_args[1]
-    assert 'params' in call_args 
-    assert call_args['params']['key'] == "test_api_key"
-    assert call_args['params']['steamids'] == "76561198041511379"
 
 @pytest.mark.parametrize("actual, expected", [
     (test_data.SAMPLE_USER_RESPONSE, test_data.GET_STEAM_USER_SUCCESS),
@@ -94,3 +82,31 @@ def test_process_user_data(actual, expected):
         result = steam._process_user_data(actual)
         assert result == expected
         
+def test_get_wishlist():
+    with patch('requests.get') as mock_get:
+        mock_response = Mock()
+        mock_response.json.return_value = test_data.SAMPLE_WISHLIST_RESPONSE
+        mock_response.raise_for_status.return_vale = None
+        mock_get.return_value  = mock_response
+        
+        steam_api = Steam(steam_api_key="test_api_key", user_id="76561198041511379")
+        # _check_params(mock_get)
+        
+        mock_get.assert_called_once_with(
+            # test_data.STEAM_USER_URL,
+            test_data.STEAM_WISHLIST_URL,
+            params={'key': test_data.STEAM_API_KEY, 'steamid': test_data.STEAM_USER_ID}
+        )
+        
+        wishlist_items = steam_api.get_wishlist()
+        assert wishlist_items == test_data.GET_STEAM_WISHLIST
+        
+def _check_params(mock_get: Mock):
+    # Verify that requests.get was called once before the exception was raised
+    mock_get.assert_called_once()
+    
+    # Verify the correct URL and parameters were used in the API call
+    call_args = mock_get.call_args[1]
+    assert 'params' in call_args 
+    assert call_args['params']['key'] == "test_api_key"
+    assert call_args['params']['steamids'] == "76561198041511379"

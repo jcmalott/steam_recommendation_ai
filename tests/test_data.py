@@ -1,3 +1,10 @@
+STEAM_WISHLIST_URL = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1'
+STEAM_LIBRARY_URL = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
+STEAM_GAME_URL = 'https://store.steampowered.com/api/appdetails'
+STEAM_USER_URL = 'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/'
+STEAM_API_KEY="test_api_key"
+STEAM_USER_ID="76561198041511379"
+
 # Sample test data for mocking responses
 SAMPLE_USER_RESPONSE = {
     "response": {
@@ -14,7 +21,6 @@ SAMPLE_USER_RESPONSE = {
         ]
     }
 }
-
 SAMPLE_ONLY_STEAMID_RESPONSE = {
     "response": {
         "players": [
@@ -30,13 +36,11 @@ SAMPLE_ONLY_STEAMID_RESPONSE = {
         ]
     }
 }
-
 SAMPLE_EMPTY_USER_RESPONSE = {
     "response": {
         "players": []
     }
 }
-
 GET_STEAM_USER_INVALID_ID = {
     "response": {
         "players": [
@@ -52,17 +56,27 @@ GET_STEAM_USER_INVALID_ID = {
         ]
     }
 }
-
 SAMPLE_PARTIAL_RESPONSE = {
-        "response": {
-            "players": [
-                {
-                    "steamid": "76561198041511379",
-                    # Missing other fields
-                }
-            ]
-        }
+    "response": {
+        "players": [
+            {
+                "steamid": "76561198041511379",
+                # Missing other fields
+            }
+        ]
     }
+}
+SAMPLE_WISHLIST_RESPONSE = {
+    "response": {
+        "items": [
+            {
+                "appid": 16900,
+                "priority": 303,
+                "date_added": 1689263421
+            }
+        ]
+    }
+}
 
 
 # PROCESS DATA
@@ -84,3 +98,8 @@ GET_STEAM_USER_ID_ONLY = {
     "country_code": "",
     "state_code": ""         
 }
+GET_STEAM_WISHLIST = [{
+    "steamid": "76561198041511379",
+    "appid": 16900,
+    "priority": 303
+}]
