@@ -101,7 +101,7 @@ class Steam():
         
         return process_data
     
-    def get_wishlist(self) -> List[str]:
+    def get_wishlist(self) -> List[Dict]:
         """ 
             * When updating a wishlist you will need to delete and add wishlist items stored in database
         """
@@ -117,15 +117,18 @@ class Steam():
             data = self._process_wishlist_data(response.json())
             if not data:
                 logger.warning(f"UserId: {self.user_id} has no wishlist items!")
+            else:
+                logger.info(f"Wishlist: UserId {self.user_id} wishlist retrieved from Server!")
                 
             return data
         except requests.RequestException as e:
-            logger.error(f"Failed to retrieve wishlist from UserId {self.user_id}!")
+            logger.error(f"Failed to retrieve wishlist for UserId {self.user_id}!")
+            raise requests.RequestException(f"Failed to retrieve wishlist for UserId {self.user_id}!")
         
         
     def _process_wishlist_data(self, response: Dict[str,Any]) -> List[Dict]:
         """ 
-            
+            Want want certain data from returned wishlist from steam server.
         """
         json_response = response["response"] if "response" in response else {}
         items = json_response.get("items", []) if "items" in json_response else []
@@ -135,42 +138,61 @@ class Steam():
         
         process_data = []
         for item in items:
-            process_data.append({
-                "steamid": self.user_id,
-                "appid": item.get("appid", 0),
-                "priority": item.get("priority", 9999)
-            })
+            if "appid" in item:
+                process_data.append({
+                    "steamid": self.user_id,
+                    "appid": item["appid"],
+                    "priority": item.get("priority", 9999)
+                })
             
         return process_data
     
-    # def get_library(self):
-    #     """ 
-    #     """
-    #     params = {
-    #         'key': self.steam_api_key,
-    #         'steamid': self.user['steamid'],
-    #         'format': 'json',
-    #         'include_played_free_games': True
-    #     }
+    def get_library(self):
+        """ 
+            Get all game ids that are stored within the users library from steam server.
+            This will be games that the user owns.
+        """
+        params = {
+            'key': self.steam_api_key,
+            'steamid': self.user_id,
+            'format': 'json',
+            'include_played_free_games': True
+        }
         
-    #     data = self._process_library_data()
-    
-    # def _process_library_data(self, response: Dict[str,Any]) -> List[Dict]:
-    #     """ 
-    #     """
-    #     games = response["response"].get("games", []) if "response" in response else []
-    #     if not games:
-    #         return {}
-        
-    #     process_data = []
-    #     for game in games:
-    #         process_data.append({
-    #             "steamid": self.user['steamid'],
-    #             "appid": game.get("appid", 0),
-    #             "priority": game.get("priority", 9999)
-    #         })
+        try:
+            response = requests.get(self.STEAM_LIBRARY_URL, params=params)
+            response.raise_for_status()
             
-    #     return process_data
+            data = self._process_library_data(response.json())
+            if not data:
+                logger.warning(f"UserId: {self.user_id} has no library items!")
+            else:
+                logger.info(f"Library: UserId {self.user_id} library retrieved from Server!")
+                
+            return data
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve library for UserId {self.user_id}!")
+            raise requests.RequestException(f"Failed to retrieve library for UserId {self.user_id}!")
+    
+    def _process_library_data(self, response: Dict[str,Any]) -> List[Dict]:
+        """ 
+            Want want certain data from returned library from steam server.
+        """
+        json_response = response["response"] if "response" in response else {}
+        games = json_response.get("games", []) if "games" in json_response else []
+        if not games:
+            return []
+        
+        process_data = []
+        for game in games:
+            if "appid" in game:
+                process_data.append({
+                    "steamid": self.user_id,
+                    "appid": game["appid"],
+                    "playtime_minutes": game["playtime_forever"]
+                })
+            
+        return process_data
     
     # def _process_game_data(self, appid, response: Dict[str,Any]) -> Dict[str,Any]:
     #     """ 

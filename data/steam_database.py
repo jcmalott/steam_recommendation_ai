@@ -37,19 +37,79 @@ class SteamDatabase():
         
         # fields within the database to be populated
         fields = ['steamid', 'persona_name', 'profile_url', 'avatar_full', 'real_name', 'country_code', 'state_code']
-        self._insert_new_row('users', fields, user)
+        self._insert_new_row('users', fields, [user])
         return True
         
-    def add_to_wishlist(self, user_id: str, items: Dict[str, Any]) -> int:
-        # ON CONFLICT (steamid, appid) DO NOTHING
-        is_user = self._check_table_item('steamid','users',user_id, False)
+    def add_to_wishlist(self, user_id: str, items: List[Dict[str, Any]]) -> int:
+        is_user = self._check_table_item('steamid','users',user_id)
         if not is_user:
             return 0
-            
-        values = []
-        self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items)
-        logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
-        return len(values)
+        
+        # if wishlist item is already in DB then just update priority level
+        on_conflict = f"""
+            ON CONFLICT (steamid, appid)
+            DO UPDATE SET
+                priority = EXCLUDED.priority
+        """   
+        has_passed = self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items, on_conflict)
+        if has_passed:
+            logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
+        return len(items)
+    
+    def get_wishlist(self, user_id: str)-> List[Dict[str,Any]]:
+        fields = ['steamid', 'appid', 'priority']
+        return self._search_db(user_id, fields, 'wishlist')
+    
+    def add_to_library(self, user_id: str, items: List[Dict[str, Any]]):
+        is_user = self._check_table_item('steamid','users', user_id)
+        if not is_user:
+            return 0
+        
+        on_conflict = f"""
+            ON CONFLICT (steamid, appid)
+            DO UPDATE SET
+                playtime_minutes = EXCLUDED.playtime_minutes
+        """   
+        has_passed = self._insert_new_row('user_library', ['steamid', 'appid', 'playtime_minutes'], items, on_conflict)
+        if has_passed:
+            logger.info(f"DB - Library - Total Items {len(items)} have been added!")     
+        return len(items)
+        
+    def get_library(self, user_id: str)-> List[Dict[str,Any]]:
+        fields = ['steamid', 'appid', 'playtime_minutes']
+        return self._search_db(user_id, fields, 'user_library')
+    
+    def _search_db(self, user_id: str, fields: List[str], table: str)-> List[Dict[str,Any]]:
+        is_user = self._check_table_item('steamid','users', user_id)
+        if is_user:
+            try:
+                columns = ', '.join(fields)
+                # gets users wishlist
+                query = f"""
+                    SELECT {columns} FROM {table}
+                    WHERE steamid = '{user_id}';
+                """
+                
+                self.cur.execute(query)
+                items = self.cur.fetchall()
+                
+                # need to return in json format just like the server would
+                items_dict = []
+                for item in items:
+                    item_json = {}
+                    for index,field in enumerate(fields):
+                        item_json[field] = item[index]
+                    
+                    items_dict.append(item_json) 
+                
+                logger.info(f"Database {table} {len(items_dict)} Fetched")
+                return items_dict
+            except pg2.Error as e:
+                logger.error(f"ERROR: Database Fetching {table}: {e}")
+                if self.conn:
+                    self.conn.rollback()
+                
+        return []  
     
     def check_update_status(self, user_id: str, column: str) -> bool:
         """
@@ -61,31 +121,33 @@ class SteamDatabase():
                 user_id: Steam user ID
                 column: Name of the column to check when last updated
                 
-            Returns: bool, False if data needs to be updated
+            Returns: bool, True if data needs to be updated
         """
         # check if user has stored data already
         is_user = self._check_table_item('steamid', 'schedule_data_retrieval', user_id)
         # if no user than schedule update
-        if not is_user:
-            return False
-        
-        try:
-            # checks if a week has passed since last update
-            query = f"""
-                SELECT needs_retrieval({column}) 
-                FROM schedule_data_retrieval 
-                WHERE steamid = '{user_id}';
-            """
-            
-            self.cur.execute(query)
-            # returns false if no update is needed
-            return self.cur.fetchone() is not None
-        except pg2.Error as e:
-            logger.error(f"ERROR: Database Fetching Schedule: {e}")
-            if self.conn:
-                self.conn.rollback()
+        if is_user:
+            try:
+                # checks if a week has passed since last update
+                query = f"""
+                    SELECT needs_retrieval({column}) 
+                    FROM schedule_data_retrieval 
+                    WHERE steamid = '{user_id}';
+                """
+                
+                self.cur.execute(query)
+                first_item = self.cur.fetchone()
+                # sometimes it gets return as a single item or tuple, even when its just one item
+                first_item = first_item[0] if isinstance(first_item, tuple) else first_item
+                return first_item
+            except pg2.Error as e:
+                logger.error(f"ERROR: Database Fetching Schedule: {e}")
+                if self.conn:
+                    self.conn.rollback()
+                    
+        return True
     
-    def _insert_new_row(self, table: str, fields: List[str], items: Dict[str, Any]):
+    def _insert_new_row(self, table: str, fields: List[str], items: List[Dict[str, Any]], on_conflict: str='') -> bool:
         """
             Insert a new row into specified table
             Each field corresponds to a key within items
@@ -94,6 +156,7 @@ class SteamDatabase():
                 table: Name of the table to insert into
                 fields: List of column names for values to be placed
                 items: values to place within each field
+            Return: True is row was inserted, otherwise False
         """
         try:
             columns = ', '.join(fields)
@@ -103,16 +166,25 @@ class SteamDatabase():
                 INSERT INTO {table} ({columns})
                 VALUES ({placeholders})
             """
+            query += on_conflict
+            
+            values = []
+            for item in items:
+                row_values = [item[field] for field in fields]
+                values.append(row_values)
+                
             # place all item values in placeholder spot, then execute query
-            self.cur.execute(query, [items[field] for field in fields])
+            self.cur.executemany(query, values)
             self.conn.commit()
-            logger.info(f"Database Insert {table}, {len(fields)} items")
+            return True
         except pg2.Error as e:
             logger.error(f"ERROR: Database Insert {table}: {e}")
             if self.conn:
                 self.conn.rollback()
+                
+        return False
             
-    def _check_table_item(self, column: str, table: str, item, check_data: bool = True) -> bool:
+    def _check_table_item(self, column: str, table: str, item) -> bool:
         """
             Check if an item exists in a specific column of a table
             
