@@ -128,7 +128,7 @@ class Steam():
         
     def _process_wishlist_data(self, response: Dict[str,Any]) -> List[Dict]:
         """ 
-            Want want certain data from returned wishlist from steam server.
+            Want certain data from returned wishlist from steam server.
         """
         json_response = response["response"] if "response" in response else {}
         items = json_response.get("items", []) if "items" in json_response else []
@@ -176,7 +176,7 @@ class Steam():
     
     def _process_library_data(self, response: Dict[str,Any]) -> List[Dict]:
         """ 
-            Want want certain data from returned library from steam server.
+            Want certain data from returned library from steam server.
         """
         json_response = response["response"] if "response" in response else {}
         games = json_response.get("games", []) if "games" in json_response else []
@@ -194,73 +194,115 @@ class Steam():
             
         return process_data
     
-    # def _process_game_data(self, appid, response: Dict[str,Any]) -> Dict[str,Any]:
-    #     """ 
-    #     """
-    #     is_success = response[appid].get("success", False) if appid in response else False
-    #     if not is_success:
-    #         return {}
+    def get_games_data(self, appids: List[int])-> List[Dict[str,Any]]:
+        try:
+            processed_games = []
+            for appid in appids:
+                processed_game = self.get_single_game_data(appid)
+                processed_games.append(processed_game)
+            
+            logger.info(f"Games: {len(processed_games)} games retrieved from Server!") 
+            return processed_games
+        except requests.RequestException as e:
+            logger.error(f"Games: failed to retrieve!")
+            raise requests.RequestException(f"Failed to retrieve games from server!")
+    
+    def get_single_game_data(self, appid: int)-> Dict[str, Any]:
+        """
+            Game data can only be retrieved from steam server one at a time.
+            Retrieves single game data from steam server.
+            
+            Note: Steam server can only handle 200 request per 5 minutes.
+        """
+        params = {
+            'appids': appid
+        }
         
-    #     data = response[appid].get("data", {}) if appid in response else {}
-    #     if not data:
-    #         return {}
+        try:
+            response = requests.get(self.STEAM_GAME_URL, params=params)
+            response.raise_for_status()
+            
+            data = self._process_single_game_data(str(appid), response.json())
+            if not data:
+                logger.warning(f"GameId: {appid} has no information!")
+            else:
+                logger.info(f"GameId: {appid} retrieved from Server!")
+                
+            return data
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve GameId {self.user_id}!")
+            raise requests.RequestException(f"Failed to retrieve GameId {self.user_id}!")
+    
+    def _process_single_game_data(self, appid: str, response: Dict[str,Any]) -> Dict[str,Any]:
+        """ 
+            Want certain data from single game return from steam server.
+        """
+        json_response = response[appid] if appid in response else {}
+        is_successful = json_response.get("success", False) if "success" in json_response else False
         
-    #     process_data = {
-    #         "appid": data.get("steam_appid", 0),
-    #         "game_type": data.get("type", ""),
-    #         "game_name": data.get("name", ""),
-    #         "is_free": data.get("is_free", False),
-    #         "detailed_description": data.get("detailed_description", ""),
-    #         "about_the_game": data.get("about_the_game", ""),
-    #         "header_image": data.get("header_image", ""),
-    #         "website": data.get("website", ""),
-    #         "developers": data.get("developers", []),
-    #         "publishers": data.get("publishers", []),
-    #         "categories": data.get("categories", []),
-    #         "genres": data.get("genres", [])
-    #         # recommendations
-    #         # release_date
-    #         # rating
-    #         # price_overview
-    #         # metacritic
-    #     }
-    #     process_data['recommendations'] = data["recommendations"].get("total", 0) if "recommendations" in data else 0
-    #     process_data['release_date'] = data["release_date"].get("date","") if "release_date" in data else ""
+        if not is_successful:
+            return {}
         
-    #     rating = data["ratings"].get("esrb","rp") if "ratings" in data else "rp"
-    #     if rating != "rp":
-    #         rating = rating.get("rating", "rp")
-    #     process_data["rating"] = rating
+        data = json_response.get("data", {}) if "data" in json_response else {}
+        if not data:
+            return {}
         
-    #     # steam will sometimes not return certain data if data == 0
-    #     price = data["price_overview"] if "price_overview" in data else {}
-    #     if not price:
-    #         price = {
-    #             "currency": "",
-    #             "price_in_cents":  0,
-    #             "final_formatted": '',
-    #             "discount_percentage": 0,
-    #         }
-    #     else:
-    #        price = {
-    #             "currency": price.get("currency", ""),
-    #             "price_in_cents": price.get("initial", 0), # price is returned in cents
-    #             "final_formatted": price.get("final_formatted", ''),
-    #             "discount_percentage": price.get("discount_percent", 0),
-    #         }  
-    #     process_data["price_overview"] = price
+        recommendations = data["recommendations"].get("total", 0) if "recommendations" in data else 0
+        release_date = data["release_date"].get("date","") if "release_date" in data else ""
         
-    #     metacritic = data["metacritic"] if "metacritic" in data else {}
-    #     if not metacritic:
-    #         metacritic = {
-    #             "score": 0,
-    #             "url":  ""
-    #         }
-    #     else:
-    #        metacritic = {
-    #             "score": metacritic.get("score", 0),
-    #             "url": metacritic.get("url", ""),
-    #         }  
-    #     process_data["metacritic"] = metacritic
+        rating = data["ratings"].get("esrb","rp") if "ratings" in data else "rp"
+        if rating != "rp":
+            rating = rating.get("rating", "rp")
         
-    #     return process_data
+        process_data = {
+            "appid": data.get("steam_appid", 0),
+            "game_type": data.get("type", ""),
+            "game_name": data.get("name", ""),
+            "is_free": data.get("is_free", False),
+            "detailed_description": data.get("detailed_description", ""),
+            "about_the_game": data.get("about_the_game", ""),
+            "header_image": data.get("header_image", ""),
+            "website": data.get("website", ""),
+            "recommendations": recommendations,
+            "release_date": release_date,
+            "esrb_rating": rating,
+            "developers": data.get("developers", []),
+            "publishers": data.get("publishers", []),
+            "categories": data.get("categories", []),
+            "genres": data.get("genres", [])
+            # price_overview
+            # metacritic
+        }
+        
+        # steam will sometimes not return certain data if data == 0
+        price = data["price_overview"] if "price_overview" in data else {}
+        if not price:
+            price = {
+                "currency": "",
+                "price_in_cents":  0,
+                "final_formatted": '',
+                "discount_percentage": 0,
+            }
+        else:
+           price = {
+                "currency": price.get("currency", ""),
+                "price_in_cents": price.get("initial", 0), # price is returned in cents
+                "final_formatted": price.get("final_formatted", ''),
+                "discount_percentage": price.get("discount_percent", 0),
+            }  
+        process_data["price_overview"] = price
+        
+        metacritic = data["metacritic"] if "metacritic" in data else {}
+        if not metacritic:
+            metacritic = {
+                "score": 0,
+                "url":  ""
+            }
+        else:
+           metacritic = {
+                "score": metacritic.get("score", 0),
+                "url": metacritic.get("url", ""),
+            }  
+        process_data["metacritic"] = metacritic
+        
+        return process_data

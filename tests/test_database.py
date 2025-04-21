@@ -204,9 +204,6 @@ def test_get_wishlist(db: SteamDatabase):
         db.cur.fetchall.return_value = test_data.DB_WISHLIST_RESPONSE
         wishlist = db.get_wishlist(test_data.STEAM_USER_ID)
         assert wishlist == test_data.DB_WISHLIST_PROCESSED
-        
-        # Verify _check_table_item was called with the correct parameters
-        db._check_table_item.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
         # 
         expected_query = f"""
             SELECT steamid, appid, priority FROM wishlist
@@ -242,9 +239,6 @@ def test_get_library(db: SteamDatabase):
         db.cur.fetchall.return_value = test_data.DB_LIBRARY_RESPONSE
         library = db.get_library(test_data.STEAM_USER_ID)
         assert library == test_data.DB_LIBRARY_PROCESSED
-        
-        # Verify _check_table_item was called with the correct parameters
-        db._check_table_item.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
         # 
         expected_query = f"""
             SELECT steamid, appid, playtime_minutes FROM user_library

@@ -173,3 +173,66 @@ def test_get_library_request_exception(steam_api: Steam):
 def test_process_library_data(actual, expected, steam_api: Steam):
     library = steam_api._process_library_data(actual)
     assert library == expected
+    
+    
+# ------------------------
+# -------  GAMES  --------
+# ------------------------  
+
+@pytest.mark.parametrize("response, processed", [
+    (test_data.CORRECT_GAME_RESPONSE, test_data.CORRECT_GAME_PROCESSED),
+    (test_data.GAME_INVALID_APPID_RESPONSE, {}),
+    (test_data.GAME_SUCCESS_FALSE_RESPONSE, {}),
+    (test_data.GAME_EMPTY_DATA_RESPONSE, {}),
+    # Test invalid appid
+    ({"invalid": "structure"}, {}),
+    # Test invalid response
+    ({f"{test_data.STEAM_APPID}": "structure"}, {}),
+    # Test invalid data
+    ({f"{test_data.STEAM_APPID}": {"success": True, "structure": {} }}, {})
+])
+def test_process_single_game_data(response, processed, steam_api: Steam):
+    processed_data = steam_api._process_single_game_data(str(test_data.STEAM_APPID), response)
+    assert processed_data == processed
+
+def test_get_single_game_data(steam_api: Steam):
+    with patch('requests.get') as mock_get:
+        mock_response = Mock()
+        mock_response.json.return_value = test_data.CORRECT_GAME_RESPONSE
+        mock_response.raise_for_status.return_value = True
+        mock_get.return_value = mock_response
+        
+        process_game = steam_api.get_single_game_data(test_data.STEAM_APPID)
+        assert process_game == test_data.CORRECT_GAME_PROCESSED
+        
+        mock_get.assert_called_once_with(
+            test_data.STEAM_GAME_URL,
+            params={
+                'appids': test_data.STEAM_APPID
+            }
+        )
+        
+def testt_get_single_game_data_request_exception(steam_api: Steam):
+    with patch('requests.get') as mock_get:
+        mock_get.side_effect = requests.RequestException("API Error")
+        
+        with pytest.raises(requests.RequestException) as exinfo:
+            steam_api.get_single_game_data(test_data.STEAM_APPID)
+            
+        assert str(exinfo.value) == f"Failed to retrieve GameId {test_data.STEAM_USER_ID}!"
+        
+        mock_get.assert_called_once_with(
+            test_data.STEAM_GAME_URL,
+            params={
+                'appids': test_data.STEAM_APPID
+            }
+        )
+        
+
+def test_get_games_data(steam_api: Steam):
+    with patch.object(steam_api, 'get_single_game_data', return_value=test_data.CORRECT_GAME_PROCESSED):
+        appids = [test_data.STEAM_APPID]
+        processed_games = steam_api.get_games_data(appids)
+        assert processed_games == [test_data.CORRECT_GAME_PROCESSED]
+        
+        steam_api.get_single_game_data.assert_called_once_with(appids[0])

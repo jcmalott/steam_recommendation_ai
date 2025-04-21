@@ -2,6 +2,8 @@ import psycopg2 as pg2
 from typing import Dict, Any, List
 from src import logger
 
+from src.tools.local_storage import remove_items
+
 class SteamDatabase():
     """
         Database class to handle PostgreSQL connection and data operations for Steam Client
@@ -45,12 +47,20 @@ class SteamDatabase():
         if not is_user:
             return 0
         
-        # if wishlist item is already in DB then just update priority level
+        # remove items no longer in wishlist
+        stored_wishlist = self.get_wishlist(user_id)
+        stored_appids = [item['appid'] for item in stored_wishlist]
+        new_appids = [item['appid'] for item in items]
+        
+        appids_to_delete = remove_items(stored_appids, new_appids)
+        self._delete_entries(user_id, 'wishlist', appids_to_delete)
+        
+        # add / update all other entries
         on_conflict = f"""
             ON CONFLICT (steamid, appid)
             DO UPDATE SET
-                priority = EXCLUDED.priority
-        """   
+            priority = EXCLUDED.priority
+        """
         has_passed = self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items, on_conflict)
         if has_passed:
             logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
@@ -79,35 +89,54 @@ class SteamDatabase():
         fields = ['steamid', 'appid', 'playtime_minutes']
         return self._search_db(user_id, fields, 'user_library')
     
-    def _search_db(self, user_id: str, fields: List[str], table: str)-> List[Dict[str,Any]]:
+    # TODO: created_at and updated_at are being set
+    def add_to_games(self, user_id: str, items: List[Dict[str, Any]]):
         is_user = self._check_table_item('steamid','users', user_id)
-        if is_user:
-            try:
-                columns = ', '.join(fields)
-                # gets users wishlist
-                query = f"""
-                    SELECT {columns} FROM {table}
-                    WHERE steamid = '{user_id}';
-                """
+        if not is_user:
+            return 0
+        
+        on_conflict = f"""
+            ON CONFLICT (appid)
+            DO UPDATE SET
+                is_free = EXCLUDED.is_free
+                recommendations = EXCLUDED.recommendations
+        """   
+        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','about_the_game','header_image','website','recommendations','release_date','esrb_rating']
+        has_passed = self._insert_new_row('games', fields, items, on_conflict)
+        if has_passed:
+            logger.info(f"DB - Library - Total Items {len(items)} have been added!")     
+        return len(items)
+    
+    def get_games(self, user_id: str)-> List[Dict[str,Any]]:
+        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','about_the_game','header_image','website','recommendations','release_date','esrb_rating']
+        return self._search_db(user_id, fields, 'games')
+    
+    def _search_db(self, user_id: str, fields: List[str], table: str)-> List[Dict[str,Any]]:
+        try:
+            columns = ', '.join(fields)
+            query = f"""
+                SELECT {columns} FROM {table}
+                WHERE steamid = '{user_id}';
+            """
+            
+            self.cur.execute(query)
+            items = self.cur.fetchall()
+            
+            # need to return in json format just like the server would
+            items_dict = []
+            for item in items:
+                item_json = {}
+                for index,field in enumerate(fields):
+                    item_json[field] = item[index]
                 
-                self.cur.execute(query)
-                items = self.cur.fetchall()
-                
-                # need to return in json format just like the server would
-                items_dict = []
-                for item in items:
-                    item_json = {}
-                    for index,field in enumerate(fields):
-                        item_json[field] = item[index]
-                    
-                    items_dict.append(item_json) 
-                
-                logger.info(f"Database {table} {len(items_dict)} Fetched")
-                return items_dict
-            except pg2.Error as e:
-                logger.error(f"ERROR: Database Fetching {table}: {e}")
-                if self.conn:
-                    self.conn.rollback()
+                items_dict.append(item_json) 
+            
+            logger.info(f"Database {table} {len(items_dict)} Fetched")
+            return items_dict
+        except pg2.Error as e:
+            logger.error(f"ERROR: Database Fetching {table}: {e}")
+            if self.conn:
+                self.conn.rollback()
                 
         return []  
     
@@ -179,6 +208,33 @@ class SteamDatabase():
             return True
         except pg2.Error as e:
             logger.error(f"ERROR: Database Insert {table}: {e}")
+            if self.conn:
+                self.conn.rollback()
+                
+        return False
+    
+    def _delete_entries(self, user_id: str, table: str, items: List[Any]) -> bool:
+        """
+            Delete all entries of user from specified table
+            
+            user_id: User id that correspondes to steamid from table 
+            table: Name of the table to delete from
+            Return: True if entries delete, otherwise False
+        """
+        try:
+            appids = ', '.join(items)
+            query = f"""
+                DELETE FROM {table}
+                WHERE steamid = '{user_id}' AND appid IN ({appids})
+            """
+                
+            # place all item values in placeholder spot, then execute query
+            self.cur.execute(query)
+            self.conn.commit()
+            logger.info(f"Database SteamID {user_id}, DELETE {len(items)} items from {table}")
+            return True
+        except pg2.Error as e:
+            logger.error(f"ERROR: Database DELETE {table}: {e}")
             if self.conn:
                 self.conn.rollback()
                 
