@@ -241,13 +241,18 @@ add_to_metacritic_conflict = f"""
     DO UPDATE SET
         score = EXCLUDED.score
 """ 
+add_to_publishers_conflict = f"""
+    ON CONFLICT (appid, publisher_name)
+    DO NOTHING
+"""   
 @pytest.mark.parametrize('func_name, on_conflict', [
     ('add_to_games', add_to_games_conflict),
     ('add_to_developers', add_to_developers_conflict),
     ('add_to_categories', add_to_categories_conflict),
     ('add_to_genres', add_to_genres_conflict),
     ('add_to_prices', add_to_prices_conflict),
-    ('add_to_metacritic', add_to_metacritic_conflict)
+    ('add_to_metacritic', add_to_metacritic_conflict),
+    ('add_to_publishers', add_to_publishers_conflict)
 ])
 def test_add_to_db(db: SteamDatabase, func_name, on_conflict):
     db_func = getattr(db, func_name)
@@ -276,7 +281,14 @@ get_wishlist_query = f"""
 """
 @pytest.mark.parametrize('func_name, response, processed, query', [
     ('get_library', test_data.DB_LIBRARY_RESPONSE, test_data.DB_LIBRARY_PROCESSED, get_library_query),
-    ('get_wishlist', test_data.DB_WISHLIST_RESPONSE, test_data.DB_WISHLIST_PROCESSED, get_wishlist_query)
+    ('get_wishlist', test_data.DB_WISHLIST_RESPONSE, test_data.DB_WISHLIST_PROCESSED, get_wishlist_query),
+    ('get_games', test_data.DB_GAMES_RESPONSE, test_data.CORRECT_GAMES_PROCESSED, None),
+    ('get_developers', test_data.DB_DEVELOPERS_RESPONSE, test_data.CORRECT_DEVELOPERS_PROCESSED, None),
+    ('get_publishers', test_data.DB_PUBLISHERS_RESPONSE, test_data.CORRECT_PUBLISHERS_PROCESSED, None),
+    ('get_categories', test_data.DB_CATEGORIES_RESPONSE, test_data.CORRECT_CATEGORIES_PROCESSED, None),
+    ('get_genres', test_data.DB_GENRES_RESPONSE, test_data.CORRECT_GENRES_PROCESSED, None),
+    ('get_prices', test_data.DB_PRICES_RESPONSE, test_data.CORRECT_PRICES_PROCESSED, None),
+    ('get_metacritics', test_data.DB_META_RESPONSE, test_data.CORRECT_META_PROCESSED, None),
 ])
 def test_get_user_appids(db: SteamDatabase, func_name, response, processed, query):
     db_func = getattr(db, func_name)
@@ -287,8 +299,9 @@ def test_get_user_appids(db: SteamDatabase, func_name, response, processed, quer
         assert processed_response == processed
         
         # query being called within the method
-        actual_query = db.cur.execute.call_args[0][0]
-        assert normalize_sql(actual_query) == normalize_sql(query)  
+        if query:
+            actual_query = db.cur.execute.call_args[0][0]
+            assert normalize_sql(actual_query) == normalize_sql(query)  
         
 def test_get_developers():
     pass

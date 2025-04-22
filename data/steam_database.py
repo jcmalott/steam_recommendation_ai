@@ -91,7 +91,7 @@ class SteamDatabase():
     
     
     def get_games(self, user_id: str)-> List[Dict[str,Any]]:
-        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','about_the_game','header_image','website','recommendations','release_date','esrb_rating']
+        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating']
         return self._search_db(user_id, fields, 'games')
     
     def add_to_developers(self, user_id: str, items: List[Dict[str, Any]])-> int:
@@ -106,6 +106,19 @@ class SteamDatabase():
     def get_developers(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['appid','developer_name']
         return self._search_db(user_id, fields, 'developers')
+    
+    def add_to_publishers(self, user_id: str, items: List[Dict[str, Any]])-> int:
+        on_conflict = f"""
+            ON CONFLICT (appid, publisher_name)
+            DO NOTHING
+        """   
+        fields = ['appid','publisher_name']
+        table = 'publishers'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_publishers(self, user_id: str)-> List[Dict[str,Any]]:
+        fields = ['appid','publisher_name']
+        return self._search_db(user_id, fields, 'publishers')
     
     def add_to_categories(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
