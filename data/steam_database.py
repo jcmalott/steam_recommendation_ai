@@ -43,10 +43,6 @@ class SteamDatabase():
         return True
         
     def add_to_wishlist(self, user_id: str, items: List[Dict[str, Any]]) -> int:
-        is_user = self._check_table_item('steamid','users',user_id)
-        if not is_user:
-            return 0
-        
         # remove items no longer in wishlist
         stored_wishlist = self.get_wishlist(user_id)
         stored_appids = [item['appid'] for item in stored_wishlist]
@@ -55,61 +51,128 @@ class SteamDatabase():
         appids_to_delete = remove_items(stored_appids, new_appids)
         self._delete_entries(user_id, 'wishlist', appids_to_delete)
         
-        # add / update all other entries
         on_conflict = f"""
             ON CONFLICT (steamid, appid)
             DO UPDATE SET
             priority = EXCLUDED.priority
-        """
-        has_passed = self._insert_new_row('wishlist', ['steamid', 'appid', 'priority'], items, on_conflict)
-        if has_passed:
-            logger.info(f"DB - Wishlist - Total Items {len(items)} have been added!")     
-        return len(items)
+        """ 
+        fields = ['steamid', 'appid', 'priority']
+        table = 'wishlist'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
     
     def get_wishlist(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['steamid', 'appid', 'priority']
         return self._search_db(user_id, fields, 'wishlist')
     
     def add_to_library(self, user_id: str, items: List[Dict[str, Any]]):
-        is_user = self._check_table_item('steamid','users', user_id)
-        if not is_user:
-            return 0
-        
         on_conflict = f"""
             ON CONFLICT (steamid, appid)
             DO UPDATE SET
                 playtime_minutes = EXCLUDED.playtime_minutes
         """   
-        has_passed = self._insert_new_row('user_library', ['steamid', 'appid', 'playtime_minutes'], items, on_conflict)
-        if has_passed:
-            logger.info(f"DB - Library - Total Items {len(items)} have been added!")     
-        return len(items)
+        fields = ['steamid', 'appid', 'playtime_minutes']
+        table = 'user_library'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
         
     def get_library(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['steamid', 'appid', 'playtime_minutes']
         return self._search_db(user_id, fields, 'user_library')
     
-    # TODO: created_at and updated_at are being set
     def add_to_games(self, user_id: str, items: List[Dict[str, Any]]):
-        is_user = self._check_table_item('steamid','users', user_id)
-        if not is_user:
-            return 0
-        
         on_conflict = f"""
             ON CONFLICT (appid)
             DO UPDATE SET
-                is_free = EXCLUDED.is_free
+                is_free = EXCLUDED.is_free,
                 recommendations = EXCLUDED.recommendations
         """   
-        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','about_the_game','header_image','website','recommendations','release_date','esrb_rating']
-        has_passed = self._insert_new_row('games', fields, items, on_conflict)
-        if has_passed:
-            logger.info(f"DB - Library - Total Items {len(items)} have been added!")     
-        return len(items)
+        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating']
+        table = 'games'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
     
     def get_games(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','about_the_game','header_image','website','recommendations','release_date','esrb_rating']
         return self._search_db(user_id, fields, 'games')
+    
+    def add_to_developers(self, user_id: str, items: List[Dict[str, Any]])-> int:
+        on_conflict = f"""
+            ON CONFLICT (appid, developer_name)
+            DO NOTHING
+        """   
+        fields = ['appid','developer_name']
+        table = 'developers'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_developers(self, user_id: str)-> List[Dict[str,Any]]:
+        fields = ['appid','developer_name']
+        return self._search_db(user_id, fields, 'developers')
+    
+    def add_to_categories(self, user_id: str, items: List[Dict[str, Any]]):
+        on_conflict = f"""
+            ON CONFLICT (appid, category_name)
+            DO NOTHING
+        """   
+        fields = ['appid','category_name']
+        table = 'categories'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_categories(self, user_id: str):
+        fields = ['appid','category_name']
+        return self._search_db(user_id, fields, 'categories')
+    
+    def add_to_genres(self, user_id: str, items: List[Dict[str, Any]]):
+        on_conflict = f"""
+            ON CONFLICT (appid, genre_name)
+            DO NOTHING
+        """   
+        fields = ['appid','genre_name']
+        table = 'genres'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_genres(self, user_id: str):
+        fields = ['appid','genre_name']
+        return self._search_db(user_id, fields, 'genres')
+    
+    def add_to_prices(self, user_id: str, items: List[Dict[str, Any]]):
+        on_conflict = f"""
+            ON CONFLICT (appid)
+            DO UPDATE SET
+                currency = EXCLUDED.currency,
+                price_in_cents = EXCLUDED.price_in_cents,
+                final_formatted = EXCLUDED.final_formatted,
+                discount_percentage = EXCLUDED.discount_percentage
+        """  
+        fields = ['appid','currency','price_in_cents','final_formatted','discount_percentage']
+        table = 'prices'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_prices(self, user_id: str):
+        fields = ['appid','currency','price_in_cents','final_formatted','discount_percentage']
+        return self._search_db(user_id, fields, 'prices')
+    
+    def add_to_metacritic(self, user_id: str, items: List[Dict[str, Any]]):
+        on_conflict = f"""
+            ON CONFLICT (appid)
+            DO UPDATE SET
+                score = EXCLUDED.score
+        """   
+        fields = ['appid','score','url']
+        table = 'metacritic'
+        return self._add_to_database(user_id, items, on_conflict, fields, table)
+    
+    def get_metacritics(self, user_id: str):
+        fields = ['appid','score','url']
+        return self._search_db(user_id, fields, 'metacritic')
+    
+    def _add_to_database(self, user_id: str, items: List[Dict[str, Any]], on_conflict: str, fields: List, table: str)-> int:
+        is_user = self._check_table_item('steamid','users', user_id)
+        if not is_user:
+            return 0
+        
+        has_passed = self._insert_new_row(table, fields, items, on_conflict)
+        if has_passed:
+            logger.info(f"DB - {table} - Total Items {len(items)} have been added!")     
+        return len(items)
     
     def _search_db(self, user_id: str, fields: List[str], table: str)-> List[Dict[str,Any]]:
         try:
@@ -139,42 +202,6 @@ class SteamDatabase():
                 self.conn.rollback()
                 
         return []  
-    
-    def check_update_status(self, user_id: str, column: str) -> bool:
-        """
-            Check if data needs to be called down from server or retrieved from database.
-            A lot of calls to the server are needed to download wishlist and library game data.
-            For this a week interval is set between download new data
-            
-            Args:
-                user_id: Steam user ID
-                column: Name of the column to check when last updated
-                
-            Returns: bool, True if data needs to be updated
-        """
-        # check if user has stored data already
-        is_user = self._check_table_item('steamid', 'schedule_data_retrieval', user_id)
-        # if no user than schedule update
-        if is_user:
-            try:
-                # checks if a week has passed since last update
-                query = f"""
-                    SELECT needs_retrieval({column}) 
-                    FROM schedule_data_retrieval 
-                    WHERE steamid = '{user_id}';
-                """
-                
-                self.cur.execute(query)
-                first_item = self.cur.fetchone()
-                # sometimes it gets return as a single item or tuple, even when its just one item
-                first_item = first_item[0] if isinstance(first_item, tuple) else first_item
-                return first_item
-            except pg2.Error as e:
-                logger.error(f"ERROR: Database Fetching Schedule: {e}")
-                if self.conn:
-                    self.conn.rollback()
-                    
-        return True
     
     def _insert_new_row(self, table: str, fields: List[str], items: List[Dict[str, Any]], on_conflict: str='') -> bool:
         """
@@ -239,6 +266,42 @@ class SteamDatabase():
                 self.conn.rollback()
                 
         return False
+    
+    def check_update_status(self, user_id: str, column: str) -> bool:
+        """
+            Check if data needs to be called down from server or retrieved from database.
+            A lot of calls to the server are needed to download wishlist and library game data.
+            For this a week interval is set between download new data
+            
+            Args:
+                user_id: Steam user ID
+                column: Name of the column to check when last updated
+                
+            Returns: bool, True if data needs to be updated
+        """
+        # check if user has stored data already
+        is_user = self._check_table_item('steamid', 'schedule_data_retrieval', user_id)
+        # if no user than schedule update
+        if is_user:
+            try:
+                # checks if a week has passed since last update
+                query = f"""
+                    SELECT needs_retrieval({column}) 
+                    FROM schedule_data_retrieval 
+                    WHERE steamid = '{user_id}';
+                """
+                
+                self.cur.execute(query)
+                first_item = self.cur.fetchone()
+                # sometimes it gets return as a single item or tuple, even when its just one item
+                first_item = first_item[0] if isinstance(first_item, tuple) else first_item
+                return first_item
+            except pg2.Error as e:
+                logger.error(f"ERROR: Database Fetching Schedule: {e}")
+                if self.conn:
+                    self.conn.rollback()
+                    
+        return True
             
     def _check_table_item(self, column: str, table: str, item) -> bool:
         """

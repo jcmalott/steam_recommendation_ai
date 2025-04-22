@@ -108,11 +108,16 @@ class GameFinder:
                 
                 # keep track of what appids still need to be downloaded
                 save_to_json(self.TEMP_FILE, remove_items(appids_to_download, batch_appids))
+                self.db.add_to_games(self.user_id, games_from_server)
+                self.db.add_to_developers(self.user_id, games_from_server)
                 # only sleep if there is still iterations to go
+                # TODO: Add way to store developers, categories, genres, price_overview, metacritic
+                # TODO: steam database the data will need to be reprocess for things above
+                # TODO: detailed_description need to remove """ and add $$
                 if i + self.BATCH_SIZE < iterations:
                     time.sleep(self.SLEEP_TIME)
-                    
-            2
+                   
+            
     
 def main():
     game_finder = GameFinder()

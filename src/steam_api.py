@@ -12,6 +12,7 @@
 import requests
 from typing import Dict, Any, List
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -253,14 +254,15 @@ class Steam():
         rating = data["ratings"].get("esrb","rp") if "ratings" in data else "rp"
         if rating != "rp":
             rating = rating.get("rating", "rp")
+            
+        detailed_description = self._strip_for_text(data.get("detailed_description", ""))
         
         process_data = {
             "appid": data.get("steam_appid", 0),
             "game_type": data.get("type", ""),
             "game_name": data.get("name", ""),
             "is_free": data.get("is_free", False),
-            "detailed_description": data.get("detailed_description", ""),
-            "about_the_game": data.get("about_the_game", ""),
+            "detailed_description": detailed_description,
             "header_image": data.get("header_image", ""),
             "website": data.get("website", ""),
             "recommendations": recommendations,
@@ -306,3 +308,16 @@ class Steam():
         process_data["metacritic"] = metacritic
         
         return process_data
+    
+    def _strip_for_text(self, text):
+        # Remove HTML tags
+        clean_text = re.sub(r'<.*?>', '', text)
+        # Replace double quotes with single quotes
+        text = text.replace('"', "'");
+        # Replace HTML entities
+        clean_text = clean_text.replace('&nbsp;', ' ')
+        # Remove extra spaces and newlines
+        clean_text = re.sub(r'\s+', ' ', clean_text)
+        # Remove leading/trailing whitespace
+        clean_text = clean_text.strip()
+        return clean_text
