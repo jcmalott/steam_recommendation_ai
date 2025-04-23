@@ -101,7 +101,20 @@ class SteamDatabase():
         """   
         fields = ['appid','developer_name']
         table = 'developers'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        correct_items = []
+        try:
+            for item in items:
+                developers = item['developers']
+                for developer in developers:
+                    correct_items.append({
+                        "appid": item['appid'], 
+                        "developer_name": developer
+                    })
+        except KeyError as e:
+            logger.warning(f"Database add_to_developers missing key, {e}")
+            raise KeyError(f"Database add_to_developers missing correct key") from e
+        return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
     def get_developers(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['appid','developer_name']
@@ -114,7 +127,20 @@ class SteamDatabase():
         """   
         fields = ['appid','publisher_name']
         table = 'publishers'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        correct_items = []
+        try:
+            for item in items:
+                publishers = item['publishers']
+                for publisher in publishers:
+                    correct_items.append({
+                        "appid": item['appid'], 
+                        "publisher_name": publisher
+                    })
+        except KeyError as e:
+            logger.warning(f"Database add_to_publishers missing key, {e}")
+            raise KeyError(f"Database add_to_publishers missing correct key") from e
+        return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
     def get_publishers(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['appid','publisher_name']
@@ -127,7 +153,20 @@ class SteamDatabase():
         """   
         fields = ['appid','category_name']
         table = 'categories'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        correct_items = []
+        try:
+            for item in items:
+                categories = item['categories']
+                for categorie in categories:
+                    correct_items.append({
+                        "appid": item['appid'], 
+                        "category_name": categorie["description"]
+                    })
+        except KeyError as e:
+            logger.warning(f"Database add_to_categories missing key, {e}")
+            raise KeyError(f"Database add_to_categories missing correct key") from e
+        return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
     def get_categories(self, user_id: str):
         fields = ['appid','category_name']
@@ -140,7 +179,20 @@ class SteamDatabase():
         """   
         fields = ['appid','genre_name']
         table = 'genres'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        correct_items = []
+        try:
+            for item in items:
+                genres = item['genres']
+                for genre in genres:
+                    correct_items.append({
+                        "appid": item['appid'], 
+                        "genre_name": genre["description"]
+                    })
+        except KeyError as e:
+            logger.warning(f"Database add_to_genres missing key, {e}")
+            raise KeyError(f"Database add_to_genres missing correct key") from e
+        return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
     def get_genres(self, user_id: str):
         fields = ['appid','genre_name']
@@ -157,7 +209,22 @@ class SteamDatabase():
         """  
         fields = ['appid','currency','price_in_cents','final_formatted','discount_percentage']
         table = 'prices'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        prices = []
+        try:
+            for item in items:
+                overview = item['price_overview']
+                prices.append({
+                    "appid": item['appid'], 
+                    "currency": overview["currency"], 
+                    "price_in_cents": overview['price_in_cents'], 
+                    "final_formatted": overview['final_formatted'], 
+                    "discount_percentage": overview['discount_percentage']
+                })
+        except KeyError as e:
+            logger.warning(f"Database add_to_prices missing key, {e}")
+            raise KeyError(f"Database add_to_prices missing correct key") from e
+        return self._add_to_database(user_id, prices, on_conflict, fields, table)
     
     def get_prices(self, user_id: str):
         fields = ['appid','currency','price_in_cents','final_formatted','discount_percentage']
@@ -171,7 +238,20 @@ class SteamDatabase():
         """   
         fields = ['appid','score','url']
         table = 'metacritic'
-        return self._add_to_database(user_id, items, on_conflict, fields, table)
+        
+        correct_items = []
+        try:
+            for item in items:
+                metacritic = item['metacritic']
+                correct_items.append({
+                    "appid": item['appid'], 
+                    "score": metacritic["score"],
+                    "url": metacritic["url"]
+                })
+        except KeyError as e:
+            logger.warning(f"Database add_to_metacritic missing key, {e}")
+            raise KeyError(f"Database add_to_metacritic missing correct key") from e
+        return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
     def get_metacritics(self, user_id: str):
         fields = ['appid','score','url']
@@ -228,8 +308,9 @@ class SteamDatabase():
             Return: True is row was inserted, otherwise False
         """
         try:
+            fields_len = len(fields)
             columns = ', '.join(fields)
-            placeholders = ', '.join(['%s'] * len(fields))
+            placeholders = ', '.join(['%s'] * fields_len)
 
             query = f"""
                 INSERT INTO {table} ({columns})
@@ -237,7 +318,7 @@ class SteamDatabase():
             """
             query += on_conflict
             
-            values = []
+            values = []  
             for item in items:
                 row_values = [item[field] for field in fields]
                 values.append(row_values)

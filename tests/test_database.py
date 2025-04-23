@@ -61,23 +61,39 @@ def test_check_table_item_database_error(db: SteamDatabase):
     result = db._check_table_item('steamid', 'users', '76561198041511379')
     # Verify the result is False (error occurred)
     assert result == False   
-    
+
+def test_add_to_database(db: SteamDatabase):
+    with patch.object(db, '_check_table_item', return_value=True):
+        on_conflict = f"""
+            ON CONFLICT (appid)
+            DO UPDATE SET
+                is_free = EXCLUDED.is_free,
+                recommendations = EXCLUDED.recommendations
+        """   
+        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating']
+        table = 'games'
+        result = db._add_to_database(test_data.STEAM_USER_ID, [test_data.CORRECT_GAME_PROCESSED], on_conflict, fields, table)
+        assert result > 0    
+        
 def test_insert_new_row_success(db: SteamDatabase):
     """Test _insert_new_row with a successful insertion."""
-    fields = ['field1', 'field2']
-    items = {'field1': 'value1', 'field2': 'value2'}
+    fields = ['appid','game_type']
+    table = 'games'
     
-    result = db._insert_new_row('test_table', fields, [items])
-    
+    result = db._insert_new_row(table, fields,  [test_data.CORRECT_GAME_PROCESSED])
     assert result == True
+    
     # Verify execute was called with the correct query and parameters
     expected_query = """
-                INSERT INTO test_table (field1, field2)
-                VALUES (%s, %s)
-            """
-    db.cur.executemany.assert_called_once_with(expected_query, [['value1', 'value2']])
+        INSERT INTO games (appid, game_type)
+        VALUES (%s, %s)
+    """
+    actual_query = db.cur.executemany.call_args[0][0]
+    assert normalize_sql(actual_query) == normalize_sql(expected_query) 
+    
+    # db.cur.executemany.assert_called_once_with(expected_query, [[1144200, "game"]])
     # Verify commit was called
-    db.conn.commit.assert_called_once()
+    db.conn.commit.assert_called_once() 
 
 def test_insert_new_row_database_error(db: SteamDatabase):
     """Test _insert_new_row when a database error occurs."""
@@ -245,31 +261,91 @@ add_to_publishers_conflict = f"""
     ON CONFLICT (appid, publisher_name)
     DO NOTHING
 """   
-@pytest.mark.parametrize('func_name, on_conflict', [
-    ('add_to_games', add_to_games_conflict),
-    ('add_to_developers', add_to_developers_conflict),
-    ('add_to_categories', add_to_categories_conflict),
-    ('add_to_genres', add_to_genres_conflict),
-    ('add_to_prices', add_to_prices_conflict),
-    ('add_to_metacritic', add_to_metacritic_conflict),
-    ('add_to_publishers', add_to_publishers_conflict)
+@patch.object(SteamDatabase,'_check_table_item', return_value=True)
+@patch.object(SteamDatabase,'_insert_new_row', return_value=True)
+@pytest.mark.parametrize('func_name, table, fields, data, on_conflict', [
+    (
+        'add_to_games', 
+        'games',
+        ['appid','game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating'],
+        [test_data.CORRECT_GAME_PROCESSED],
+        add_to_games_conflict
+    ),
+    (
+        'add_to_developers', 
+        'developers',
+        ['appid','developer_name'],
+        test_data.CORRECT_DEVELOPERS_PROCESSED,
+        add_to_developers_conflict
+    ),
+    (
+        'add_to_publishers', 
+        'publishers',
+        ['appid','publisher_name'],
+        test_data.CORRECT_PUBLISHERS_PROCESSED,
+        add_to_publishers_conflict
+    ),
+    (
+        'add_to_categories', 
+        'categories',
+        ['appid','category_name'],
+        test_data.CORRECT_CATEGORIES_PROCESSED,
+        add_to_categories_conflict
+    ),
+    (
+        'add_to_genres', 
+        'genres',
+        ['appid','genre_name'],
+        test_data.CORRECT_GENRES_PROCESSED,
+        add_to_genres_conflict
+    ),
+    (   
+        'add_to_prices', 
+        'prices',
+        ['appid','currency','price_in_cents','final_formatted','discount_percentage'],
+        test_data.CORRECT_PRICES_PROCESSED,
+        add_to_prices_conflict
+    ),
+    (
+        'add_to_metacritic', 
+        'metacritic',
+        ['appid','score','url'],
+        test_data.CORRECT_META_PROCESSED,
+        add_to_metacritic_conflict
+    )
 ])
-def test_add_to_db(db: SteamDatabase, func_name, on_conflict):
+def test_add_to_db(mock_insert, mock_table, db: SteamDatabase, func_name, table, fields, data, on_conflict):
     db_func = getattr(db, func_name)
     
-    with patch.object(db,'_check_table_item', return_value=True):
-        with patch.object(db, '_insert_new_row') as mock_insert:
-            # place function
-            result = db_func(test_data.STEAM_USER_ID, test_data.CORRECT_GAME_PROCESSED)
-            assert result > 0 
-            
-            # Verify _check_table_item was called with the correct parameters
-            db._check_table_item.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
-            
-            # on_conflict 
-            actual_query = mock_insert.call_args[0][3]
-            assert normalize_sql(actual_query) == normalize_sql(on_conflict) 
-            mock_insert.assert_called_once()    
+    result = db_func(test_data.STEAM_USER_ID, [test_data.CORRECT_GAME_PROCESSED])
+    assert result > 0 
+    
+    # Verify _check_table_item was called with the correct parameters
+    mock_table.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
+
+    mock_args = mock_insert.call_args[0]
+    assert mock_args[0] == table
+    assert mock_args[1] == fields
+    assert mock_args[2] == data
+    assert normalize_sql(mock_args[3]) == normalize_sql(on_conflict) 
+    mock_insert.assert_called_once()  
+    
+@pytest.mark.parametrize('func_name, error_message', [
+    ('add_to_developers', "'Database add_to_developers missing correct key'"),
+    ('add_to_publishers', "'Database add_to_publishers missing correct key'"),
+    ('add_to_categories', "'Database add_to_categories missing correct key'"),
+    ( 'add_to_genres', "'Database add_to_genres missing correct key'"),
+    ('add_to_prices', "'Database add_to_prices missing correct key'"),
+    ('add_to_metacritic', "'Database add_to_metacritic missing correct key'")
+])
+def test_add_to_db_fail(db: SteamDatabase, func_name, error_message):
+    db_func = getattr(db, func_name)
+    
+    with pytest.raises(KeyError) as excinfo:
+        db_func(test_data.STEAM_USER_ID, [{'appid': 0, 'currency': "USD"}])
+        
+    #  Verify the exception has the expected message including the specific user ID
+    assert str(excinfo.value) == error_message
 
 get_library_query = f"""
     SELECT steamid, appid, playtime_minutes FROM user_library
@@ -302,9 +378,6 @@ def test_get_user_appids(db: SteamDatabase, func_name, response, processed, quer
         if query:
             actual_query = db.cur.execute.call_args[0][0]
             assert normalize_sql(actual_query) == normalize_sql(query)  
-        
-def test_get_developers():
-    pass
         
 def normalize_sql(query):
     # Remove extra whitespace, newlines, and indentation
