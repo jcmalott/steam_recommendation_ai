@@ -342,8 +342,10 @@ class SteamDatabase():
             table: Name of the table to delete from
             Return: True if entries delete, otherwise False
         """
+        if not items:
+            return False
         try:
-            appids = ', '.join(items)
+            appids = ', '.join(str(item) for item in items)
             query = f"""
                 DELETE FROM {table}
                 WHERE steamid = '{user_id}' AND appid IN ({appids})

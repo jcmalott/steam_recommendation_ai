@@ -378,6 +378,23 @@ def test_get_user_appids(db: SteamDatabase, func_name, response, processed, quer
         if query:
             actual_query = db.cur.execute.call_args[0][0]
             assert normalize_sql(actual_query) == normalize_sql(query)  
+
+@pytest.mark.parametrize('items, actual_result', [
+    ([839770, 878290, 881100], True),
+    ([], False)
+])           
+def test_delete_entries(items, actual_result, db: SteamDatabase):
+    result = db._delete_entries(test_data.STEAM_USER_ID, 'wishlist', items)
+    assert result == actual_result
+    
+    if actual_result:
+        appids = ', '.join(str(item) for item in items)
+        query = f"""
+            DELETE FROM wishlist
+            WHERE steamid = '76561198041511379' AND appid IN ({appids})
+        """
+        actual_query = db.cur.execute.call_args[0][0]
+        assert normalize_sql(actual_query) == normalize_sql(query)
         
 def normalize_sql(query):
     # Remove extra whitespace, newlines, and indentation

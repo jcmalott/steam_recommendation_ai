@@ -251,7 +251,7 @@ class Steam():
         recommendations = data["recommendations"].get("total", 0) if "recommendations" in data else 0
         release_date = data["release_date"].get("date","") if "release_date" in data else ""
         
-        rating = data["ratings"].get("esrb","rp") if "ratings" in data else "rp"
+        rating = data["ratings"].get("esrb","rp") if "ratings" in data and data["ratings"] != None else "rp"
         if rating != "rp":
             rating = rating.get("rating", "rp")
             

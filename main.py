@@ -97,7 +97,11 @@ class GameFinder:
             # save all appids that need to be downloaded
             appids_to_download = [item['appid'] for item in self.wishlist]
             save_to_json(self.TEMP_FILE, appids_to_download)
-          
+        
+        # TODO: best to just call a single game at a time and wait a sec inbetween
+        # TODO: the server could timeout while a batch is taking place
+        # TODO: why is the file not saving properly
+        logger.info(f"Left to Download: {len(appids_to_download)}")  
         iterations = len(appids_to_download)
         with tqdm(total=iterations, desc="Retrieving game data from server!", unit='game') as pbar:
             for i in range(0, iterations, self.BATCH_SIZE):
@@ -110,10 +114,13 @@ class GameFinder:
                 save_to_json(self.TEMP_FILE, remove_items(appids_to_download, batch_appids))
                 self.db.add_to_games(self.user_id, games_from_server)
                 self.db.add_to_developers(self.user_id, games_from_server)
+                self.db.add_to_publishers(self.user_id, games_from_server)
+                self.db.add_to_categories(self.user_id, games_from_server)
+                self.db.add_to_genres(self.user_id, games_from_server)
+                self.db.add_to_prices(self.user_id, games_from_server)
+                self.db.add_to_metacritic(self.user_id, games_from_server)
                 # only sleep if there is still iterations to go
-                # TODO: Add way to store developers, categories, genres, price_overview, metacritic
-                # TODO: steam database the data will need to be reprocess for things above
-                # TODO: detailed_description need to remove """ and add $$
+                pbar.update(iterations/self.BATCH_SIZE)
                 if i + self.BATCH_SIZE < iterations:
                     time.sleep(self.SLEEP_TIME)
                    
