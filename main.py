@@ -2,11 +2,12 @@ import os
 from dotenv import load_dotenv
 from tqdm import tqdm
 import time
+import json  
 
 from src.steam_api import Steam
 from data.steam_database import SteamDatabase
 from src import logger
-from src.tools.local_storage import check_file, load_from_json, save_to_json, remove_items
+from src.tools.local_storage import check_file, load_from_json, save_to_json, remove_items, parse_library_purchase_history
 
 class GameFinder:
     load_dotenv()
@@ -14,9 +15,11 @@ class GameFinder:
     STEAM_USER_ID = os.getenv('STEAM_USER_ID')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
     TEMP_FILE = 'data/temp_data.json'
+    PAYMENT_HISTORY_FILE = 'data/payment_history.html'
+    PAYMENT_HISTORY_DIR = 'data/purchase_history'
     BATCH_SIZE = 20 # items, How many resquests to make in one iteration
     # There is a 200 request limit every 5 mins. (5*60)/200 = 1.5
-    SLEEP_TIME = 1.5 * BATCH_SIZE # Seconds, time between calling each game
+    SLEEP_TIME = 1.6 # Seconds, time between calling each game
     
     def __init__(self):
         if not self.STEAM_API_KEY or not self.STEAM_USER_ID:
@@ -52,6 +55,7 @@ class GameFinder:
         
         self.wishlist = []
         if is_wishlist_updated:
+            # TODO: only get new items and delete any removed ones, check db
             # call server to load and save wishlist
             wishlist = self.steam.get_wishlist()
             if wishlist:
@@ -76,6 +80,7 @@ class GameFinder:
         
         library = []
         if is_library_updated:
+            # TODO: only load new items to library, get items from db to check
             # call server to load and save library
             library = self.steam.get_library()
             if library:
@@ -88,30 +93,38 @@ class GameFinder:
         return len(self.library) > 0
     
     def store_game_data_to_db(self):
-        # self.library
+        # only call if a week has passed from last mass update
+        # are_games_updated = self.db.check_update_status(self.user_id, 'games_updated_at')
+        # if not are_games_updated:
+        #     return
+    
         appids_to_download = []
         if check_file(self.TEMP_FILE):
             # load appid still to download
             appids_to_download = load_from_json(self.TEMP_FILE)["data"]
         else:
             # save all appids that need to be downloaded
-            appids_to_download = [item['appid'] for item in self.wishlist]
+            # appids_to_download = [item['appid'] for item in self.wishlist]
+            appids_to_download = [item['appid'] for item in self.library]
             save_to_json(self.TEMP_FILE, appids_to_download)
         
-        # TODO: best to just call a single game at a time and wait a sec inbetween
-        # TODO: the server could timeout while a batch is taking place
-        # TODO: why is the file not saving properly
         logger.info(f"Left to Download: {len(appids_to_download)}")  
         iterations = len(appids_to_download)
+        ids_left = appids_to_download
         with tqdm(total=iterations, desc="Retrieving game data from server!", unit='game') as pbar:
             for i in range(0, iterations, self.BATCH_SIZE):
                 batch_appids = appids_to_download[i:i+self.BATCH_SIZE]
                 
-                games_from_server = self.steam.get_games_data(batch_appids)
+                
+                games_from_server = self.steam.get_games_data(batch_appids, self.SLEEP_TIME)
                 # save games to DB
                 
                 # keep track of what appids still need to be downloaded
-                save_to_json(self.TEMP_FILE, remove_items(appids_to_download, batch_appids))
+                # important incase there's an error while downloading
+                ids_left = remove_items(ids_left, batch_appids)
+                save_to_json(self.TEMP_FILE, ids_left)
+                
+                # save all game data to DB
                 self.db.add_to_games(self.user_id, games_from_server)
                 self.db.add_to_developers(self.user_id, games_from_server)
                 self.db.add_to_publishers(self.user_id, games_from_server)
@@ -121,9 +134,22 @@ class GameFinder:
                 self.db.add_to_metacritic(self.user_id, games_from_server)
                 # only sleep if there is still iterations to go
                 pbar.update(iterations/self.BATCH_SIZE)
-                if i + self.BATCH_SIZE < iterations:
-                    time.sleep(self.SLEEP_TIME)
-                   
+                
+        self.db.set_games_update_status(self.user_id)
+     
+    def parse_payment_history(self):
+        # only call if a week has passed from last mass update
+        # are_games_updated = self.db.check_update_status(self.user_id, 'games_updated_at')
+        # if not are_games_updated:
+        #     return
+        
+        purchase_history = parse_library_purchase_history(self.PAYMENT_HISTORY_DIR+"/steam")
+        purchase_history = parse_library_purchase_history(self.PAYMENT_HISTORY_DIR+"/kinguin")
+        print(json.dumps(purchase_history, indent=2))
+        # TODO: store prices in db
+        # - game_name = purchase_history["name"], user_price_paid = purchase_history["price"]
+        # - games -> game_name, appid
+        # - prices(appid) -> set user_price_paid
             
     
 def main():
@@ -131,9 +157,10 @@ def main():
     has_steam_account = game_finder.load_user()
     
     if has_steam_account:
-        game_finder.load_wishlist()
-        game_finder.load_library()
-        game_finder.store_game_data_to_db()
+        # game_finder.load_wishlist()
+        # game_finder.load_library()
+        # game_finder.store_game_data_to_db()
+        game_finder.parse_payment_history()
     
 if __name__ == '__main__':
     main()

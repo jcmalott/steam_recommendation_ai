@@ -27,8 +27,7 @@ class SteamDatabase():
             Add Steam user to database if not already present
             
             Args:
-                user: Dictionary containing Steam user account data
-                
+                users: Dictionary containing Steam user account data   
             Returns: bool, False if user already exist
         """
         # checking to see if user exist, if so exit
@@ -327,6 +326,8 @@ class SteamDatabase():
             self.cur.executemany(query, values)
             self.conn.commit()
             return True
+        except KeyError as ke:
+            logger.error(f"ERROR: Database Insert {table}, {fields}, {items}: {ke}")
         except pg2.Error as e:
             logger.error(f"ERROR: Database Insert {table}: {e}")
             if self.conn:
@@ -421,3 +422,35 @@ class SteamDatabase():
             logger.error(f"ERROR - Database Selection: {e}")
             
         return False
+    
+    def set_games_update_status(self, user_id: str) -> bool:
+        """
+            Sets games_updated_at from table schedule_data_retrieval to current time and date.
+            
+            Note: This should be set after adding or updating multiple games from wishlist or library to DB.
+                  A single server call is needed for each game, so user is advised to wait a certain amount of time before making multiple calls again.
+                  reference function check_update_status 
+            
+            Args: user_id: Steam user ID   
+            Returns: bool, True if data was updated, False if user_id doesn't exist in table or data wasn't set
+        """
+        # check if user has stored data already
+        is_user = self._check_table_item('steamid', 'schedule_data_retrieval', user_id)
+        # if no user than schedule update
+        if is_user:
+            try:
+                # checks if a week has passed since last update
+                query = f"""
+                    UPDATE schedule_data_retrieval
+                    SET games_updated_at = NOW()
+                    WHERE steamid = '{user_id}'
+                """
+                
+                self.cur.execute(query)
+                return True
+            except pg2.Error as e:
+                logger.error(f"ERROR: Database setting games_updated_at failed: {e}")
+                if self.conn:
+                    self.conn.rollback()
+        else:          
+            return False

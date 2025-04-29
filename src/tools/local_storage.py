@@ -1,6 +1,7 @@
 import json
 from src import logger
 import os
+from bs4 import BeautifulSoup
 from typing import List, Any, Dict
         
 def save_to_json(file_path: str, variable_data: List):
@@ -68,3 +69,95 @@ def remove_items(all_items: List[Any], items_to_remove: List[Any])-> List[Any]:
     """
     items_set = set(items_to_remove)
     return [item for item in all_items if item not in items_set]
+
+def parse_library_purchase_history(dir_path)-> list[Dict]:
+    if not os.path.isdir(dir_path):
+        return
+    
+    html_files = [file for file in os.listdir(dir_path) if file.lower().endswith('.html')]
+    if not html_files:
+        return
+    
+    all_transactions = []
+    for file in html_files:
+        file_path = os.path.join(dir_path, file)
+        
+        transaction_data = parse_payment_history_steam(file_path)
+        all_transactions += transaction_data
+        
+    return all_transactions
+            
+def parse_payment_history_steam(filepath: str)-> List[Dict]:
+    items = []
+    if not filepath.endswith('.html'):
+        return {}
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+            
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Get individual items
+        item = soup.find(class_='purchase_line_items')
+        if not item:
+            return []
+        names = item.find_all(class_='purchase_detail_field')
+        prices = item.find_all(class_='refund_value')
+        
+        for i in range(len(names)):
+            price_text = prices[i].get_text()
+            price = float(price_text.replace("$",''))
+            price_cents = int(price * 100)
+            items.append({"name": names[i].get_text(), "price":price_cents})
+    except Exception as e:
+            print(f"Error processing '{filepath}': {str(e)}")
+    
+    return items
+
+def parse_payment_history_kinguin(filepath: str)-> List[Dict]:
+    items = []
+    if not filepath.endswith('.html'):
+        return {}
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+            
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        items = []
+        # find all orders
+        rows = soup.find_all(class_='sc-jwQYvw hlGyez')
+        for row in rows:
+            # don't process headers
+            if row.find('th'):
+                continue
+            
+            # each item bought
+            cells = row.find_all('td', class_='sc-gFSQbh')
+            name = cells[2].get_text()
+            # extract game name only
+            game_name = parse_game_name(name)
+            
+            # amount game was paid for in cents
+            price = cells[5].get_text()
+            price_in_cents = int(float(price.replace("$",'')) * 100)
+            items.append({"name": game_name.strip(), "price":price_in_cents})
+    except Exception as e:
+            print(f"Error processing '{filepath}': {str(e)}")
+    
+    return items
+
+def parse_game_name(name):
+    game_name = ""
+    if "PC" in name:
+        game_name = name.split("PC")[0]
+    elif "Steam" in name:
+        game_name = name.split("Steam")[0]
+    elif "EA" in name:
+        game_name = name.split("EA")[0]
+    elif "Origin" in name:
+        game_name = name.split("Origin")[0]
+        
+    return game_name

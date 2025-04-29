@@ -396,6 +396,31 @@ def test_delete_entries(items, actual_result, db: SteamDatabase):
         actual_query = db.cur.execute.call_args[0][0]
         assert normalize_sql(actual_query) == normalize_sql(query)
         
+        
+def test_set_games_update_status(db: SteamDatabase):
+    # Mock _check_table_item to return False (user doesn't exist)
+    with patch.object(db, '_check_table_item', return_value=True):
+        # Mock cursor.fetchone to return True (update needed)
+        db.cur.fetchone.return_value = True
+        result = db.set_games_update_status(test_data.STEAM_USER_ID)
+        
+        # Verify the result is True (update needed)
+        assert result == True
+        
+        # Verify _check_table_item was called with the correct parameters
+        db._check_table_item.assert_called_once_with('steamid', 'schedule_data_retrieval', test_data.STEAM_USER_ID)
+        
+        # Verify execute was called with the correct query
+        expected_query = f"""
+                UPDATE schedule_data_retrieval
+                SET games_updated_at = NOW()
+                WHERE steamid = '{test_data.STEAM_USER_ID}';
+            """
+            
+        # query being called within the method
+        actual_query = db.cur.execute.call_args[0][0]
+        assert normalize_sql(actual_query) == normalize_sql(expected_query)
+        
 def normalize_sql(query):
     # Remove extra whitespace, newlines, and indentation
     return ' '.join(query.split())

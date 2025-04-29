@@ -13,6 +13,7 @@ import requests
 from typing import Dict, Any, List
 import logging
 import re
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -195,12 +196,13 @@ class Steam():
             
         return process_data
     
-    def get_games_data(self, appids: List[int])-> List[Dict[str,Any]]:
+    def get_games_data(self, appids: List[int], wait_time: float = 0.0)-> List[Dict[str,Any]]:
         try:
             processed_games = []
             for appid in appids:
                 processed_game = self.get_single_game_data(appid)
                 processed_games.append(processed_game)
+                time.sleep(wait_time)
             
             logger.info(f"Games: {len(processed_games)} games retrieved from Server!") 
             return processed_games
