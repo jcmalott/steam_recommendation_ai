@@ -2,4 +2,7 @@
 
 test.ipynb
 
+data/purchase_history/kinguin
+data/purchase_history/steam
+
 __pycache__/
