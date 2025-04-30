@@ -414,7 +414,7 @@ def test_set_games_update_status(db: SteamDatabase):
         expected_query = f"""
                 UPDATE schedule_data_retrieval
                 SET games_updated_at = NOW()
-                WHERE steamid = '{test_data.STEAM_USER_ID}';
+                WHERE steamid = '{test_data.STEAM_USER_ID}'
             """
             
         # query being called within the method

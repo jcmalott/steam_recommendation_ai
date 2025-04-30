@@ -70,7 +70,7 @@ def remove_items(all_items: List[Any], items_to_remove: List[Any])-> List[Any]:
     items_set = set(items_to_remove)
     return [item for item in all_items if item not in items_set]
 
-def parse_library_purchase_history(dir_path)-> list[Dict]:
+def parse_library_purchase_history(dir_path: str)-> list[Dict]:
     if not os.path.isdir(dir_path):
         return
     
@@ -82,7 +82,13 @@ def parse_library_purchase_history(dir_path)-> list[Dict]:
     for file in html_files:
         file_path = os.path.join(dir_path, file)
         
-        transaction_data = parse_payment_history_steam(file_path)
+        if 'steam' in dir_path:
+            transaction_data = parse_payment_history_steam(file_path)
+        elif 'kinguin' in dir_path:
+            print(True)
+            transaction_data = parse_payment_history_kinguin(file_path)
+        else:
+            return
         all_transactions += transaction_data
         
     return all_transactions
@@ -122,8 +128,7 @@ def parse_payment_history_kinguin(filepath: str)-> List[Dict]:
     
     try:
         with open(filepath, 'r', encoding='utf-8') as file:
-            html_content = file.read()
-            
+            html_content = file.read() 
         soup = BeautifulSoup(html_content, 'html.parser')
         
         items = []
