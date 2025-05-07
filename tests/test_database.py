@@ -420,6 +420,68 @@ def test_set_games_update_status(db: SteamDatabase):
         # query being called within the method
         actual_query = db.cur.execute.call_args[0][0]
         assert normalize_sql(actual_query) == normalize_sql(expected_query)
+
+@patch.object(SteamDatabase, '_check_table_item', return_value=True)        
+def test_add_paid_price(mock_check_user, db: SteamDatabase):
+    db.add_paid_price(test_data.STEAM_USER_ID, test_data.CORRECT_USER_PRICES)
+    # Verify _check_table_item was called with the correct parameters
+    db._check_table_item.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
+    
+    expected_query = """
+            UPDATE user_library
+            SET user_paid_price = %s
+            WHERE appid = (
+                SELECT appid 
+                FROM games
+                WHERE game_name = %s
+            )
+        """
+    
+    # Check that all games in test data are called
+    assert len(db.cur.execute.call_args_list) == 3
+    db.conn.commit.assert_called_once()
+    db.conn.rollback.assert_not_called()
+    
+    for i, call in enumerate(db.cur.execute.call_args_list):
+        # Check query string
+        actual_query = call[0][0]
+        assert normalize_sql(actual_query) == normalize_sql(expected_query)
+        
+        # Check query parameters
+        actual_params = call[0][1]
+        expected_params = (test_data.CORRECT_USER_PRICES[i]["price"], 
+                          test_data.CORRECT_USER_PRICES[i]["game_name"])
+        assert actual_params == expected_params
+
+@pytest.mark.parametrize('check_result, data',[
+    (False,test_data.CORRECT_USER_PRICES),
+    (True, [])
+])
+@patch.object(SteamDatabase, '_check_table_item')         
+def test_add_paid_price_error(mock_table, db: SteamDatabase, check_result, data):
+    mock_table.return_value = check_result
+    db.add_paid_price(test_data.STEAM_USER_ID, data)
+    
+    # Verify _check_table_item was called with the correct parameters
+    db._check_table_item.assert_called_once_with('steamid', 'users', test_data.STEAM_USER_ID)
+    db.cur.execute.assert_not_called()
+    db.conn.commit.assert_not_called()
+    db.conn.rollback.assert_not_called()
+
+@patch.object(SteamDatabase, '_check_table_item', return_value=True) 
+@patch('src.tools.local_storage.logger.error')     
+def test_add_paid_price_database_error(mock_logger, mock_table, db: SteamDatabase):
+    db.cur.execute.side_effect = pg2.Error("Test database error")
+    db.add_paid_price(test_data.STEAM_USER_ID, test_data.CORRECT_USER_PRICES)
+    
+    # Verify rollback was called due to the error
+    db.conn.rollback.assert_called_once()
+    db.conn.commit.assert_not_called()
+    
+    # Verify logger was called with the correct error message
+    mock_logger.assert_called_once()
+    log_message = mock_logger.call_args[0][0]
+    assert "Database Insert Adding user_paid_price to user_library" in log_message
         
 def normalize_sql(query):
     # Remove extra whitespace, newlines, and indentation

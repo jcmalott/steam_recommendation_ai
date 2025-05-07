@@ -611,3 +611,22 @@ CORRECT_META_PROCESSED = [
         "url": "",
     }
 ]
+
+
+# ------------------------
+# -------  PRICES  -------
+# ------------------------
+CORRECT_USER_PRICES = [
+    {
+      "game_name": "Unboxing the Cryptic Killer",
+      "price": 359
+    },
+    {
+      "game_name": "Darkwood",
+      "price": 374
+    },
+    {
+      "game_name": "INSIDE",
+      "price": 199
+    }
+]

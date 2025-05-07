@@ -256,6 +256,34 @@ class SteamDatabase():
         fields = ['appid','score','url']
         return self._search_db(user_id, fields, 'metacritic')
     
+    def add_paid_price(self, user_id: str, game_prices: List[Dict]):
+        """ 
+            Takes the game name and price user paid for it and addes that price to prices table under user_price_paid.
+        """
+        is_user = self._check_table_item('steamid','users', user_id)
+        if not is_user and len(game_prices) < 1:
+            return
+        
+        query = """
+            UPDATE user_library
+            SET user_paid_price = %s
+            WHERE appid = (
+                SELECT appid 
+                FROM games
+                WHERE game_name = %s
+            )
+        """
+        
+        try:
+            for game in game_prices:
+                self.cur.execute(query, (game["price"], game["game_name"]))   
+            self.conn.commit()
+        except pg2.Error as e:
+            logger.error(f"Database Insert Adding user_paid_price to user_library: {e}")
+            if self.conn:
+                self.conn.rollback()
+        
+    
     def _add_to_database(self, user_id: str, items: List[Dict[str, Any]], on_conflict: str, fields: List, table: str)-> int:
         is_user = self._check_table_item('steamid','users', user_id)
         if not is_user:
@@ -319,17 +347,19 @@ class SteamDatabase():
             
             values = []  
             for item in items:
-                row_values = [item[field] for field in fields]
-                values.append(row_values)
+                # check if item has data in it
+                if item:
+                    row_values = [item[field] for field in fields]
+                    values.append(row_values)
                 
             # place all item values in placeholder spot, then execute query
             self.cur.executemany(query, values)
             self.conn.commit()
             return True
         except KeyError as ke:
-            logger.error(f"ERROR: Database Insert {table}, {fields}, {items}: {ke}")
+            logger.error(f"Database Insert {table}, {fields}, {items}: {ke}")
         except pg2.Error as e:
-            logger.error(f"ERROR: Database Insert {table}: {e}")
+            logger.error(f"Database Insert {table}: {e}")
             if self.conn:
                 self.conn.rollback()
                 

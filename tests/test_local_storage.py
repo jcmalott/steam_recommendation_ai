@@ -92,14 +92,14 @@ def create_html_kinguin_file():
 # wrong path
 # no files
 TEST_HTML_STEAM_DATA = [
-    {"name": "INSIDE", "price": 199},
-    {"name": "Project Warlock", "price": 240},
-    {"name": "The Inheritance of Crimson Manor", "price": 399}
+    {"game_name": "INSIDE", "price": 199},
+    {"game_name": "Project Warlock", "price": 240},
+    {"game_name": "The Inheritance of Crimson Manor", "price": 399}
 ]
 TEST_HTML_KINGUIN_DATA = [
-    {"name": "Dead Space", "price": 282},
-    {"name": "Dead Space 2", "price": 514},
-    {"name": "Dead Space 3", "price": 749}
+    {"game_name": "Dead Space", "price": 282},
+    {"game_name": "Dead Space 2", "price": 514},
+    {"game_name": "Dead Space 3", "price": 749}
 ]
 test_cases=[
     ("../data/purchase_history/steam", "parse_payment_history_steam", TEST_HTML_STEAM_DATA, TEST_HTML_STEAM_DATA, ["file1.html"]),

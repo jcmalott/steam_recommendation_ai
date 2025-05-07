@@ -71,6 +71,12 @@ def remove_items(all_items: List[Any], items_to_remove: List[Any])-> List[Any]:
     return [item for item in all_items if item not in items_set]
 
 def parse_library_purchase_history(dir_path: str)-> list[Dict]:
+    """ 
+        Parses html files found in directory that was passed. Then returns all orders that are found with game names and prices paid.
+        
+        Note:
+            The html pages must be stored within a steam of kinguin folder depending on where the orders are from.
+    """
     if not os.path.isdir(dir_path):
         return
     
@@ -85,7 +91,6 @@ def parse_library_purchase_history(dir_path: str)-> list[Dict]:
         if 'steam' in dir_path:
             transaction_data = parse_payment_history_steam(file_path)
         elif 'kinguin' in dir_path:
-            print(True)
             transaction_data = parse_payment_history_kinguin(file_path)
         else:
             return
@@ -94,6 +99,13 @@ def parse_library_purchase_history(dir_path: str)-> list[Dict]:
     return all_transactions
             
 def parse_payment_history_steam(filepath: str)-> List[Dict]:
+    """ 
+        Takes a steam order html file and parses it for game_names and price user paid.
+        
+        Note: 
+        Order History Page: https://store.steampowered.com/account/history/
+        This HTML file must be from one of the orders displayed in above link.
+    """
     items = []
     if not filepath.endswith('.html'):
         return {}
@@ -115,13 +127,20 @@ def parse_payment_history_steam(filepath: str)-> List[Dict]:
             price_text = prices[i].get_text()
             price = float(price_text.replace("$",''))
             price_cents = int(price * 100)
-            items.append({"name": names[i].get_text(), "price":price_cents})
+            items.append({"game_name": names[i].get_text(), "price":price_cents})
     except Exception as e:
             print(f"Error processing '{filepath}': {str(e)}")
     
     return items
 
 def parse_payment_history_kinguin(filepath: str)-> List[Dict]:
+    """ 
+        Takes a Kinguin order html file and gets all game orders returning game names and price user paid.
+        
+        Note: 
+        Order Page: https://www.kinguin.net/app/dashboard/orders
+        The html file must be from link above which is displaying an extented order.
+    """
     items = []
     if not filepath.endswith('.html'):
         return {}
@@ -148,7 +167,7 @@ def parse_payment_history_kinguin(filepath: str)-> List[Dict]:
             # amount game was paid for in cents
             price = cells[5].get_text()
             price_in_cents = int(float(price.replace("$",'')) * 100)
-            items.append({"name": game_name.strip(), "price":price_in_cents})
+            items.append({"game_name": game_name.strip(), "price":price_in_cents})
     except Exception as e:
             print(f"Error processing '{filepath}': {str(e)}")
     
