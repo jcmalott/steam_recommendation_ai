@@ -4,5 +4,7 @@ test.ipynb
 
 data/purchase_history/kinguin
 data/purchase_history/steam
+data/games.json
+data/purchase_names.json
 
 __pycache__/
