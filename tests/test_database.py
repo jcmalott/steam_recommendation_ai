@@ -275,42 +275,42 @@ add_to_publishers_conflict = f"""
         'add_to_developers', 
         'developers',
         ['appid','developer_name'],
-        test_data.CORRECT_DEVELOPERS_PROCESSED,
+        test_data.CORRECT_ADD_DEVELOPERS_PROCESSED,
         add_to_developers_conflict
     ),
     (
         'add_to_publishers', 
         'publishers',
         ['appid','publisher_name'],
-        test_data.CORRECT_PUBLISHERS_PROCESSED,
+        test_data.CORRECT_ADD_PUBLISHERS_PROCESSED,
         add_to_publishers_conflict
     ),
     (
         'add_to_categories', 
         'categories',
         ['appid','category_name'],
-        test_data.CORRECT_CATEGORIES_PROCESSED,
+        test_data.CORRECT_ADD_CATEGORIES_PROCESSED,
         add_to_categories_conflict
     ),
     (
         'add_to_genres', 
         'genres',
         ['appid','genre_name'],
-        test_data.CORRECT_GENRES_PROCESSED,
+        test_data.CORRECT_ADD_GENRES_PROCESSED,
         add_to_genres_conflict
     ),
     (   
         'add_to_prices', 
         'prices',
         ['appid','currency','price_in_cents','final_formatted','discount_percentage'],
-        test_data.CORRECT_PRICES_PROCESSED,
+        test_data.CORRECT_ADD_PRICES_PROCESSED,
         add_to_prices_conflict
     ),
     (
         'add_to_metacritic', 
         'metacritic',
         ['appid','score','url'],
-        test_data.CORRECT_META_PROCESSED,
+        test_data.CORRECT_ADD_META_PROCESSED,
         add_to_metacritic_conflict
     )
 ])
@@ -348,7 +348,7 @@ def test_add_to_db_fail(db: SteamDatabase, func_name, error_message):
     assert str(excinfo.value) == error_message
 
 get_library_query = f"""
-    SELECT steamid, appid, playtime_minutes FROM user_library
+    SELECT steamid, appid, playtime_minutes, user_paid_price FROM user_library
     WHERE steamid = '{test_data.STEAM_USER_ID}';
 """
 get_wishlist_query = f"""
@@ -358,13 +358,13 @@ get_wishlist_query = f"""
 @pytest.mark.parametrize('func_name, response, processed, query', [
     ('get_library', test_data.DB_LIBRARY_RESPONSE, test_data.DB_LIBRARY_PROCESSED, get_library_query),
     ('get_wishlist', test_data.DB_WISHLIST_RESPONSE, test_data.DB_WISHLIST_PROCESSED, get_wishlist_query),
-    ('get_games', test_data.DB_GAMES_RESPONSE, test_data.CORRECT_GAMES_PROCESSED, None),
+    ('get_game', test_data.DB_GAMES_RESPONSE, test_data.CORRECT_GAMES_PROCESSED, None),
     ('get_developers', test_data.DB_DEVELOPERS_RESPONSE, test_data.CORRECT_DEVELOPERS_PROCESSED, None),
     ('get_publishers', test_data.DB_PUBLISHERS_RESPONSE, test_data.CORRECT_PUBLISHERS_PROCESSED, None),
     ('get_categories', test_data.DB_CATEGORIES_RESPONSE, test_data.CORRECT_CATEGORIES_PROCESSED, None),
     ('get_genres', test_data.DB_GENRES_RESPONSE, test_data.CORRECT_GENRES_PROCESSED, None),
     ('get_prices', test_data.DB_PRICES_RESPONSE, test_data.CORRECT_PRICES_PROCESSED, None),
-    ('get_metacritics', test_data.DB_META_RESPONSE, test_data.CORRECT_META_PROCESSED, None),
+    ('get_metacritics', test_data.DB_META_RESPONSE, test_data.CORRECT_META_PROCESSED, None)
 ])
 def test_get_user_appids(db: SteamDatabase, func_name, response, processed, query):
     db_func = getattr(db, func_name)

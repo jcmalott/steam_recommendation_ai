@@ -179,8 +179,8 @@ EMPTY_LIBRARY_RESPONSE = {
     }
 }
 DB_LIBRARY_RESPONSE = [
-    ('76561198041511379',  362490, 253),
-    ('76561198041511379',  362680, 132) 
+    ('76561198041511379',  362490, 253, 200),
+    ('76561198041511379',  362680, 132, 50) 
 ]
 
 # PROCESS DATA
@@ -192,8 +192,8 @@ CORRECT_LIBRARY_PROCESSED = [
     }
 ]
 DB_LIBRARY_PROCESSED = [
-    {'steamid': STEAM_USER_ID, 'appid': 362490, 'playtime_minutes': 253},
-    {'steamid': STEAM_USER_ID, 'appid': 362680, 'playtime_minutes': 132}
+    {'steamid': STEAM_USER_ID, 'appid': 362490, 'playtime_minutes': 253, "user_paid_price": 200},
+    {'steamid': STEAM_USER_ID, 'appid': 362680, 'playtime_minutes': 132, "user_paid_price": 50}
 ]
 
 
@@ -490,8 +490,7 @@ CORRECT_GAME_PROCESSED = {
     }
 }
 DB_GAMES_RESPONSE = [
-    (1144200,
-    "game",
+    ("game",
     "Ready or Not",
      False,
     "Be sure to join the Ready or Not Discord server to keep up with the latest updates, find recruits for your squad, and have a good time!Los Sueños- The LSPD reports a massive upsurge in violent crime across the greater Los Sueños area. Special Weapons and Tactics (SWAT) teams have been dispatched to respond to various scenes involving high-risk hostage situations, active bomb threats, barricaded suspects, and other criminal activities. Citizens are being advised to practice caution when traveling the city or to stay at home. It has been noted that while Los Sueños is still seen as a city where riches can be found, for many more the finer things in life are becoming less and less obtainable. “The city is sprawling with cramped high-rise apartments and decaying affordable housing, which has been exploited by the criminal underground like a malevolent parasite,” states Chief Galo Álvarez. “In a city where people are just trying to survive, lawful action from the LSPD and the LSPD SWAT team remains an integral force preventing the stretched thin social fabric in this city from snapping under this chaotic strain.” In response to the burgeoning violent crime wave inundating Los Sueños, Chief Álvarez of the LSPD has enlisted the stalwart support of David ‘Judge’ Beaumont as the Commander of the LSPD SWAT team. Shortly following this announcement, the LSPD has also confirmed active recruitment for additional talent to join this specialized tactical police unit with the mission of bringing peace back to the city. “This assignment is not for the faint of heart,” comments Commander Beaumont, “Extremists, crooked politicians, countless weapons, human trafficking, and illicit drugs and pornography… the world of policing in Los Sueños is fraught with real and harsh realities, realities that the everyday person isn’t necessarily confronted with. These are realities that you will need to navigate with your team within the proper bounds of the law or face the consequences and make matters worse.” The Los Sueños Policed Department has officially posted new details on Commander “Judge” Beaumont’s updated assignment with the LSPD SWAT team: New Expectations:Whether this is your first time in Los Sueños or not, the city has changed and so too have the tools and methods with which we conduct our work. The haunts you might have seen or heard about are re-imagined, and so have the angles with which we approach each call. Furthermore, we’ve received reports that identify at least 4 new high-risk police districts which we suspect may require future tactical intervention, plus at least 4 existing high-risk districts that underwent massive upheavals. Take Command:The role of the Commander of the LSPD SWAT is to compose their team from a large roster with unique talents, give tactical orders, meticulously plan, and carry out missions. Commanders are obligated to conduct each mission with integrity and look after their team’s mental and physical health. Officers with unaddressed deteriorating mental status may be unable to properly perform their duties or even feel compelled to quit the force. Incapacitated officers may be temporarily unavailable for missions, with the tragic prospect of death leading to a permanent loss. For SWAT Commanders in unusual circumstances based on individual choices they opt for, deadly mistakes may lead to their own permanent fatality. SWAT Team Quality Enhancement: Much anticipated improved SWAT training procedures, tactics, and experience in the LSPD has led to an overall increase in the quality and quantity of officers in our roster. Expanded tactical versatility allows our officers to take on any challenge with renewed confidence, blending coordination and independence seamlessly. There is also additional basic training now available to SWAT members to keep foundational knowledge and muscle memory in top shape. Equipment and customization:We have access to the best weapons and equipment that the LSPD can offer to fulfill our exceptionally dangerous role, including many new acquisitions. However, customization isn’t limited to the equipment we use. Through close-knit comradery while performing remarkable actions alongside the team, you’ll earn the clothes you wear, the patches on your sleeves, the artwork that may adorn your skin, and potentially even the timepiece on your wrist. Lastly, we have overhauled our headquarters' training facilities to better test our loadouts before heading out on call.",
@@ -501,8 +500,7 @@ DB_GAMES_RESPONSE = [
     "Dec 13, 2023",
     'rp')
  ]
-CORRECT_GAMES_PROCESSED = [{
-    "appid": 1144200,
+CORRECT_GAMES_PROCESSED = {
     "game_type": "game",
     "game_name": "Ready or Not",
     "is_free": False,
@@ -512,35 +510,68 @@ CORRECT_GAMES_PROCESSED = [{
     "recommendations": 180814,
     "release_date": "Dec 13, 2023",
     "esrb_rating": 'rp'
-}]
+}
 DB_DEVELOPERS_RESPONSE = [
-    (1144200,  "VOID Interactive")
+    ("VOID Interactive",)
 ]
 CORRECT_DEVELOPERS_PROCESSED = [
+    {
+        "developer_name": "VOID Interactive"
+    }
+]
+CORRECT_ADD_DEVELOPERS_PROCESSED = [
     {
         "appid": 1144200,
         "developer_name": "VOID Interactive"
     }
 ]
 DB_PUBLISHERS_RESPONSE = [
-    (1144200,  "VOID Interactive")
+    ("VOID Interactive",)
 ]
 CORRECT_PUBLISHERS_PROCESSED = [
+    {
+        "publisher_name": "VOID Interactive"
+    }
+]
+CORRECT_ADD_PUBLISHERS_PROCESSED = [
     {
         "appid": 1144200,
         "publisher_name": "VOID Interactive"
     }
 ]
 DB_CATEGORIES_RESPONSE = [
-    (1144200,  "Single-player"),
-    (1144200,  "Multi-player"),
-    (1144200,  "Co-op"),
-    (1144200,  "Online Co-op"),
-    (1144200,  "Steam Achievements"),
-    (1144200,  "Full controller support"),
-    (1144200,  "Steam Cloud")
+    ("Single-player",),
+    ("Multi-player",),
+    ("Co-op",),
+    ("Online Co-op",),
+    ("Steam Achievements",),
+    ("Full controller support",),
+    ("Steam Cloud",)
 ]
 CORRECT_CATEGORIES_PROCESSED = [
+    {
+        "category_name": "Single-player"
+    },
+    {
+        "category_name": "Multi-player"
+    },
+    {
+        "category_name": "Co-op"
+    },
+    {
+        "category_name": "Online Co-op"
+    },
+    {
+        "category_name": "Steam Achievements"
+    },
+    {
+        "category_name": "Full controller support"
+    },
+    {
+        "category_name": "Steam Cloud"
+    }
+]
+CORRECT_ADD_CATEGORIES_PROCESSED = [
     {
         "appid": 1144200,
         "category_name": "Single-player"
@@ -571,11 +602,22 @@ CORRECT_CATEGORIES_PROCESSED = [
     }
 ]
 DB_GENRES_RESPONSE = [
-    (1144200,  "Action"),
-    (1144200,  "Adventure"),
-    (1144200,  "Indie")
+    ("Action",),
+    ("Adventure",),
+    ("Indie",)
 ]
 CORRECT_GENRES_PROCESSED = [
+    {
+        "genre_name": "Action"
+    },
+    {
+        "genre_name": "Adventure"
+    },
+    {
+        "genre_name": "Indie"
+    }
+]
+CORRECT_ADD_GENRES_PROCESSED = [
     {
         "appid": 1144200,
         "genre_name": "Action"
@@ -590,9 +632,15 @@ CORRECT_GENRES_PROCESSED = [
     }
 ]
 DB_PRICES_RESPONSE = [
-    (1144200,  "USD", 4999, "$24.99", 50)
+    ("USD", 4999, "$24.99", 50)
 ]
-CORRECT_PRICES_PROCESSED = [
+CORRECT_PRICES_PROCESSED = {
+        "currency": "USD",
+        "price_in_cents": 4999,
+        "final_formatted": "$24.99",
+        "discount_percentage": 50
+}
+CORRECT_ADD_PRICES_PROCESSED = [
      {
         "appid": 1144200,
         "currency": "USD",
@@ -602,9 +650,13 @@ CORRECT_PRICES_PROCESSED = [
     }
 ]
 DB_META_RESPONSE = [
-    (1144200,  0, "")
+    (0, "")
 ]
-CORRECT_META_PROCESSED = [
+CORRECT_META_PROCESSED = {
+        "score": 0,
+        "url": "",
+}
+CORRECT_ADD_META_PROCESSED = [
      {
         "appid": 1144200,
         "score": 0,

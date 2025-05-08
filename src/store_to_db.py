@@ -1,6 +1,6 @@
 import os
-from dotenv import load_dotenv
 from tqdm import tqdm
+from typing import List, Dict
 import time
 import json  
 
@@ -10,10 +10,6 @@ from src import logger
 from src.tools.local_storage import check_file, load_from_json, save_to_json, remove_items, parse_library_purchase_history
 
 class StoreToDB:
-    load_dotenv()
-    STEAM_API_KEY = os.getenv('STEAM_API_KEY')
-    STEAM_USER_ID = os.getenv('STEAM_USER_ID')
-    DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
     TEMP_FILE = 'data/temp_data.json'
     PAYMENT_HISTORY_FILE = 'data/payment_history.html'
     PAYMENT_HISTORY_DIR = 'data/purchase_history'
@@ -21,11 +17,9 @@ class StoreToDB:
     # There is a 200 request limit every 5 mins. (5*60)/200 = 1.5
     SLEEP_TIME = 1.6 # Seconds, time between calling each game
     
-    def __init__(self):
-        if not self.STEAM_API_KEY or not self.STEAM_USER_ID:
-            raise ValueError("API keys must be set in environment variables")
-        self.db = SteamDatabase('steam', 'postgres', self.DATABASE_PASSWORD)
-        self.steam = Steam(self.STEAM_API_KEY, self.STEAM_USER_ID)
+    def __init__(self, steam, db):
+        self.steam = steam
+        self.db = db
         
     def load_user(self)-> bool:
         """
@@ -42,19 +36,19 @@ class StoreToDB:
             
         return len(user_data) > 0
     
-    def load_wishlist(self)-> bool:
+    def load_wishlist(self, check_steam: bool = True)-> List[Dict]:
         """
             Check db if user has a wishlist. If so was it added more than a week ago.
             If first time loading wishlist or last call has been under a week, then pull from steam server.
             If wishlist exist within db then pull from db.
             
-            Return: True if wishlist was loaded.
+            Return: List of games from users wishlist.
             Note: User wishlist is updated every week to reduce overcalling server.
         """
-        is_wishlist_updated = self.db.check_update_status(self.user_id, 'wishlist_updated_at')
+        is_wishlist_outdated = self.db.check_update_status(self.user_id, 'wishlist_updated_at')
         
         self.wishlist = []
-        if is_wishlist_updated:
+        if is_wishlist_outdated and check_steam:
             # TODO: only get new items and delete any removed ones, check db
             # call server to load and save wishlist
             wishlist = self.steam.get_wishlist()
@@ -65,21 +59,21 @@ class StoreToDB:
             wishlist = self.db.get_wishlist(self.user_id)
         
         self.wishlist = wishlist    
-        return len(self.wishlist) > 0
+        return self.wishlist
             
-    def load_library(self)-> bool:
+    def load_library(self, check_steam: bool = True)-> List[Dict]:
         """
             Check db if user has a library. If so was it added more than a week ago.
             If first time loading library or last call has been under a week, then pull from steam server.
             If library exist within db then pull from db.
             
-            Return: True if library was loaded.
+            Return: List of games from user library.
             Note: User library is updated every week to reduce overcalling server.
         """
-        is_library_updated = self.db.check_update_status(self.user_id, 'library_updated_at')
+        is_library_outdated = self.db.check_update_status(self.user_id, 'library_updated_at')
         
         library = []
-        if is_library_updated:
+        if is_library_outdated and check_steam:
             # TODO: only load new items to library, get items from db to check
             # call server to load and save library
             library = self.steam.get_library()
@@ -87,10 +81,10 @@ class StoreToDB:
                 self.db.add_to_library(self.user_id, library)
         else:
             # call database to load library
-            library =self. db.get_library(self.user_id)
+            library =self.db.get_library(self.user_id)
         
         self.library = library  
-        return len(self.library) > 0
+        return self.library
     
     def store_game_data_to_db(self):
         # only call if a week has passed from last mass update

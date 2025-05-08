@@ -61,7 +61,7 @@ class SteamDatabase():
     
     def get_wishlist(self, user_id: str)-> List[Dict[str,Any]]:
         fields = ['steamid', 'appid', 'priority']
-        return self._search_db(user_id, fields, 'wishlist')
+        return self._search_db('steamid', user_id, fields, 'wishlist')
     
     def add_to_library(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -74,8 +74,8 @@ class SteamDatabase():
         return self._add_to_database(user_id, items, on_conflict, fields, table)
         
     def get_library(self, user_id: str)-> List[Dict[str,Any]]:
-        fields = ['steamid', 'appid', 'playtime_minutes']
-        return self._search_db(user_id, fields, 'user_library')
+        fields = ['steamid', 'appid', 'playtime_minutes','user_paid_price']
+        return self._search_db('steamid', user_id, fields, 'user_library')
     
     def add_to_games(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -89,9 +89,10 @@ class SteamDatabase():
         return self._add_to_database(user_id, items, on_conflict, fields, table)
     
     
-    def get_games(self, user_id: str)-> List[Dict[str,Any]]:
-        fields = ['appid','game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating']
-        return self._search_db(user_id, fields, 'games')
+    def get_game(self, appid: str)-> Dict[str,Any]:
+        fields = ['game_type', 'game_name', 'is_free', 'detailed_description','header_image','website','recommendations','release_date','esrb_rating']
+        item = self._search_db('appid', appid, fields, 'games')
+        return item[0] if item else {}
     
     def add_to_developers(self, user_id: str, items: List[Dict[str, Any]])-> int:
         on_conflict = f"""
@@ -115,9 +116,9 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_developers missing correct key") from e
         return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
-    def get_developers(self, user_id: str)-> List[Dict[str,Any]]:
-        fields = ['appid','developer_name']
-        return self._search_db(user_id, fields, 'developers')
+    def get_developers(self, appid: str)-> List[Dict[str,Any]]:
+        fields = ['developer_name']
+        return self._search_db('appid', appid, fields, 'developers')
     
     def add_to_publishers(self, user_id: str, items: List[Dict[str, Any]])-> int:
         on_conflict = f"""
@@ -141,9 +142,9 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_publishers missing correct key") from e
         return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
-    def get_publishers(self, user_id: str)-> List[Dict[str,Any]]:
-        fields = ['appid','publisher_name']
-        return self._search_db(user_id, fields, 'publishers')
+    def get_publishers(self, appid: str)-> List[Dict[str,Any]]:
+        fields = ['publisher_name']
+        return self._search_db('appid', appid, fields, 'publishers')
     
     def add_to_categories(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -167,9 +168,9 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_categories missing correct key") from e
         return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
-    def get_categories(self, user_id: str):
-        fields = ['appid','category_name']
-        return self._search_db(user_id, fields, 'categories')
+    def get_categories(self, appid: str)-> List[Dict[str, Any]]:
+        fields = ['category_name']
+        return self._search_db('appid', appid, fields, 'categories')
     
     def add_to_genres(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -193,9 +194,9 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_genres missing correct key") from e
         return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
-    def get_genres(self, user_id: str):
-        fields = ['appid','genre_name']
-        return self._search_db(user_id, fields, 'genres')
+    def get_genres(self, appid: str):
+        fields = ['genre_name']
+        return self._search_db('appid', appid, fields, 'genres')
     
     def add_to_prices(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -225,9 +226,10 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_prices missing correct key") from e
         return self._add_to_database(user_id, prices, on_conflict, fields, table)
     
-    def get_prices(self, user_id: str):
-        fields = ['appid','currency','price_in_cents','final_formatted','discount_percentage']
-        return self._search_db(user_id, fields, 'prices')
+    def get_prices(self, appid: str):
+        fields = ['currency','price_in_cents','final_formatted','discount_percentage']
+        item = self._search_db('appid', appid, fields, 'prices')
+        return item[0] if item else {}
     
     def add_to_metacritic(self, user_id: str, items: List[Dict[str, Any]]):
         on_conflict = f"""
@@ -252,16 +254,17 @@ class SteamDatabase():
             raise KeyError(f"Database add_to_metacritic missing correct key") from e
         return self._add_to_database(user_id, correct_items, on_conflict, fields, table)
     
-    def get_metacritics(self, user_id: str):
-        fields = ['appid','score','url']
-        return self._search_db(user_id, fields, 'metacritic')
+    def get_metacritics(self, appid: str):
+        fields = ['score','url']
+        item = self._search_db('appid', appid, fields, 'metacritic')
+        return item[0] if item else {}
     
     def add_paid_price(self, user_id: str, game_prices: List[Dict]):
         """ 
             Takes the game name and price user paid for it and addes that price to prices table under user_price_paid.
         """
         is_user = self._check_table_item('steamid','users', user_id)
-        if not is_user and len(game_prices) < 1:
+        if not is_user or len(game_prices) < 1:
             return
         
         query = """
@@ -294,12 +297,12 @@ class SteamDatabase():
             logger.info(f"DB - {table} - Total Items {len(items)} have been added!")     
         return len(items)
     
-    def _search_db(self, user_id: str, fields: List[str], table: str)-> List[Dict[str,Any]]:
+    def _search_db(self, column: str, value, fields: List[str], table: str)-> List[Dict[str,Any]]:
         try:
             columns = ', '.join(fields)
             query = f"""
                 SELECT {columns} FROM {table}
-                WHERE steamid = '{user_id}';
+                WHERE {column} = '{value}';
             """
             
             self.cur.execute(query)
